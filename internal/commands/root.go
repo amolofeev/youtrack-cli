@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 
+	"github.com/amolofeev/prompt-and-pray/internal/config"
 	"github.com/amolofeev/prompt-and-pray/internal/output"
 	"github.com/amolofeev/prompt-and-pray/internal/version"
 	"github.com/spf13/cobra"
@@ -10,11 +11,21 @@ import (
 
 type printerKey struct{}
 
-// NewRootCommand создаёт корневую команду yt. Здесь — минимальный каркас,
-// достаточный для работы yt version (SPEC §3.11): флаг --json и автогенерация
-// --version. Глобальные флаги, группы справки и completion — Атом 2.3 (#22).
+// globalOptions — значения глобальных флагов (§3.1). Здесь хранятся только
+// значения, заданные флагами; разрешение приоритета «флаг > env > config >
+// дефолт» выполняет pipeline (Атом 2.4, #25).
+type globalOptions struct {
+	baseURL string
+	token   string
+	json    bool
+	verbose bool
+}
+
+// NewRootCommand создаёт корневую команду yt (SPEC §2.3, §3.1): глобальные
+// флаги --base-url/--token/--json/--verbose, группы справки Основное/Issues/
+// Сервер/Служебное и встроенную команду completion.
 func NewRootCommand() *cobra.Command {
-	var jsonOut bool
+	opts := &globalOptions{}
 
 	cmd := &cobra.Command{
 		Use:           "yt",
@@ -24,7 +35,7 @@ func NewRootCommand() *cobra.Command {
 		Version:       version.Version,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			mode := output.ModeTTY
-			if jsonOut {
+			if opts.json {
 				mode = output.ModeJSON
 			}
 			printer := output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), mode)
@@ -33,9 +44,24 @@ func NewRootCommand() *cobra.Command {
 		},
 	}
 
-	cmd.PersistentFlags().BoolVar(&jsonOut, "json", false, "выводить результат в машинном формате JSON")
+	flags := cmd.PersistentFlags()
+	flags.StringVar(&opts.baseURL, "base-url", "", "базовый URL API (по умолчанию из config/env, иначе "+config.DefaultBaseURL+")")
+	flags.StringVar(&opts.token, "token", "", "permanent token (по умолчанию из config/env)")
+	flags.BoolVar(&opts.json, "json", false, "выводить результат в машинном формате JSON")
+	flags.BoolVar(&opts.verbose, "verbose", false, "подробный лог в stderr (уровень debug)")
 
-	cmd.AddCommand(newVersionCmd())
+	cmd.AddGroup(
+		&cobra.Group{ID: "core", Title: "Основное"},
+		&cobra.Group{ID: "issues", Title: "Issues"},
+		&cobra.Group{ID: "server", Title: "Сервер"},
+		&cobra.Group{ID: "utility", Title: "Служебное"},
+	)
+	cmd.SetHelpCommandGroupID("utility")
+	cmd.SetCompletionCommandGroupID("utility")
+
+	versionCmd := newVersionCmd()
+	versionCmd.GroupID = "utility"
+	cmd.AddCommand(versionCmd)
 
 	return cmd
 }
