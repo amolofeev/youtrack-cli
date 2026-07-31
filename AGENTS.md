@@ -12,9 +12,9 @@
 - Инструментарий: Go 1.24.0 (`~/sdk/go1.24.0/bin/go`, не в PATH); golangci-lint v1.64+ (`~/go/bin`).
 - Поведение зависимостей (cobra и т.п.) проверяй юнит-тестом, а не чтением исходников
   из module cache — тест быстрее, а факт остаётся в коде.
-- Если исходники зависимости всё же нужны для чтения: сначала `go mod vendor` (создаст
-  `yt/vendor/`), читай оттуда, затем удали `vendor/`. Не рыться в системных каталогах
-  (module cache и т.п.). `vendor/` в .gitignore, но оставлять его в рабочей копии не надо.
+- Если исходники зависимости нужны для чтения: `go mod vendor` — каталог `yt/vendor/`
+  создаётся один раз и остаётся на диске (gitignored, в git не попадает). Читать
+  исходники оттуда, не рыться в системных каталогах (module cache и т.п.).
 - Цели Makefile: `make build` → `bin/yt`; `make test`; `make lint`; `make vet`; `make integration`.
 - Версия берётся из корневого `VERSION` (`../VERSION`) и встраивается через `-ldflags`
   в переменные `internal/version.{Version,Commit,Built}`; при сборке без ldflags — `unknown`.
