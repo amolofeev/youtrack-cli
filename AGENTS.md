@@ -13,4 +13,9 @@
 - Цели Makefile: `make build` → `bin/yt`; `make test`; `make lint`; `make vet`; `make integration`.
 - Версия берётся из корневого `VERSION` (`../VERSION`) и встраивается через `-ldflags`
   в переменные `internal/version.{Version,Commit,Built}`; при сборке без ldflags — `unknown`.
-- Объём и критерии приёмки — docs/SPEC.md (rev 1.1) и задачи GitHub (метка `atomic`).
+- Объём и критерии приёмки — docs/SPEC.md (rev 1.1.1) и задачи GitHub (метка `atomic`).
+- Сверка со спекой (§4.8/DoR): если живой сервер недоступен — использовать снапшот
+  `/tmp/opencode/openapi.json` (сверить версию API = 2025.3), зафиксировать отклонение
+  в комментарии задачи; финальная сверка — Атом 8.4.
+- Если для задачи нужно поднять YouTrack (`localhost:8080`) или установить ПО —
+  спросить человека, не делать автономно.
