@@ -2,7 +2,15 @@ package commands
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
+	"github.com/amolofeev/prompt-and-pray/internal/api"
 	"github.com/amolofeev/prompt-and-pray/internal/config"
 	"github.com/amolofeev/prompt-and-pray/internal/output"
 	"github.com/amolofeev/prompt-and-pray/internal/version"
@@ -10,10 +18,12 @@ import (
 )
 
 type printerKey struct{}
+type configKey struct{}
+type clientKey struct{}
 
 // globalOptions — значения глобальных флагов (§3.1). Здесь хранятся только
 // значения, заданные флагами; разрешение приоритета «флаг > env > config >
-// дефолт» выполняет pipeline (Атом 2.4, #25).
+// дефолт» выполняет pipeline (§3.2, Атом 2.4).
 type globalOptions struct {
 	baseURL string
 	token   string
@@ -23,7 +33,8 @@ type globalOptions struct {
 
 // NewRootCommand создаёт корневую команду yt (SPEC §2.3, §3.1): глобальные
 // флаги --base-url/--token/--json/--verbose, группы справки Основное/Issues/
-// Сервер/Служебное и встроенную команду completion.
+// Сервер/Служебное, встроенную команду completion и пайплайн (§2.1) в
+// PersistentPreRunE.
 func NewRootCommand() *cobra.Command {
 	opts := &globalOptions{}
 
@@ -33,14 +44,21 @@ func NewRootCommand() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Version:       version.Version,
+		Args:          unknownCommandArgs,
+		// Root runnable, чтобы валидация аргументов срабатывала и для
+		// неизвестных подкоманд (exit 2, §4.4); «yt» без аргументов печатает help.
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return cmd.Help()
+		},
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			mode := output.ModeTTY
 			if opts.json {
 				mode = output.ModeJSON
 			}
 			printer := output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), mode)
-			cmd.SetContext(context.WithValue(cmd.Context(), printerKey{}, printer))
-			return nil
+			ctx := context.WithValue(cmd.Context(), printerKey{}, printer)
+			cmd.SetContext(ctx)
+			return runPipeline(cmd, opts)
 		},
 	}
 
@@ -49,6 +67,10 @@ func NewRootCommand() *cobra.Command {
 	flags.StringVar(&opts.token, "token", "", "permanent token (по умолчанию из config/env)")
 	flags.BoolVar(&opts.json, "json", false, "выводить результат в машинном формате JSON")
 	flags.BoolVar(&opts.verbose, "verbose", false, "подробный лог в stderr (уровень debug)")
+
+	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
+		return usageError(err)
+	})
 
 	cmd.AddGroup(
 		&cobra.Group{ID: "core", Title: "Основное"},
@@ -66,9 +88,95 @@ func NewRootCommand() *cobra.Command {
 	return cmd
 }
 
-// Execute запускает CLI.
-func Execute() error {
-	return NewRootCommand().Execute()
+// runPipeline выполняет шаг «разбор флагов → загрузка конфигурации → клиент»
+// (SPEC §2.1). Значения разрешаются по приоритету флаг > env > config > дефолт
+// (§3.2); клиент кладётся в контекст вместе с resolved-конфигурацией.
+func runPipeline(cmd *cobra.Command, opts *globalOptions) error {
+	cfg, err := config.Resolve(opts.baseURL, opts.token)
+	if err != nil {
+		return err
+	}
+	timeout, err := config.HTTPTimeout()
+	if err != nil {
+		return err
+	}
+	client, err := api.New(cfg.BaseURL, cfg.Token,
+		api.WithTimeout(timeout),
+		api.WithLogger(newLogger(cmd.ErrOrStderr(), opts.verbose)),
+	)
+	if err != nil {
+		return err
+	}
+	ctx := context.WithValue(cmd.Context(), configKey{}, cfg)
+	ctx = context.WithValue(ctx, clientKey{}, client)
+	cmd.SetContext(ctx)
+	return nil
+}
+
+// newLogger создаёт функцию лога для API-клиента (§4.6). По умолчанию уровень
+// error (клиент ничего не логирует); --verbose или YT_LOG_LEVEL=debug включают
+// debug-лог в stderr формата «2026-07-31T12:00:00Z DBG GET /issues?$top=30
+// status=200 dur=123ms». Тело ответа и токен не логируются.
+func newLogger(w io.Writer, verbose bool) func(string, ...any) {
+	if !verbose && config.LogLevel() != "debug" {
+		return func(string, ...any) {}
+	}
+	return func(format string, args ...any) {
+		fmt.Fprintf(w, "%s %s\n", time.Now().UTC().Format(time.RFC3339), fmt.Sprintf(format, args...))
+	}
+}
+
+// Run выполняет CLI с os.Args и возвращает код выхода процесса.
+func Run() int {
+	return RunArgs(os.Args[1:], os.Stdout, os.Stderr)
+}
+
+// RunArgs выполняет CLI с заданными аргументами и потоками, возвращая код
+// выхода процесса (SPEC §4.4): 0 — успех, 1 — runtime/API, 2 — usage,
+// 130 — отменено пользователем (SIGINT/SIGTERM, §4.5).
+func RunArgs(args []string, stdout, stderr io.Writer) int {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	root := NewRootCommand()
+	root.SetOut(stdout)
+	root.SetErr(stderr)
+	root.SetArgs(args)
+	root.SetContext(ctx)
+	return run(root)
+}
+
+// run выполняет команду и преобразует ошибку в код выхода. Сообщение ошибки
+// печатается в stderr один раз в формате «yt: <сообщение>» (§4.4).
+func run(root *cobra.Command) int {
+	err := root.Execute()
+	if err == nil {
+		return exitOK
+	}
+	fmt.Fprintf(root.ErrOrStderr(), "yt: %s\n", formatError(err))
+	return exitCodeFor(err)
+}
+
+// configFromContext возвращает resolved-конфигурацию из контекста (устанавливает
+// pipeline) или nil, если pipeline не выполнялся.
+func configFromContext(cmd *cobra.Command) *config.Config {
+	cfg, _ := cmd.Context().Value(configKey{}).(*config.Config)
+	return cfg
+}
+
+// requireClient возвращает API-клиент из контекста, проверяя наличие токена
+// (§4.4: «no token provided: run "yt auth login" or set YT_TOKEN»). Команды, не
+// требующие API (version, completion, auth login), его не вызывают.
+func requireClient(cmd *cobra.Command) (*api.Client, error) {
+	client, _ := cmd.Context().Value(clientKey{}).(*api.Client)
+	if client == nil {
+		return nil, errors.New("API client is not initialized")
+	}
+	cfg := configFromContext(cmd)
+	if cfg == nil || cfg.Token == "" {
+		return nil, fmt.Errorf(`no token provided: run "yt auth login" or set YT_TOKEN`)
+	}
+	return client, nil
 }
 
 // printer возвращает Printer команды. Если pipeline ещё не инициализировал

@@ -39,7 +39,7 @@ func newVersionCmd() *cobra.Command {
 		Short: "Вывести версию утилиты",
 		Long: "Вывести версию утилиты (version, commit, дату сборки, платформу).\n" +
 			"Не требует токена и подключения к серверу.",
-		Args: cobra.NoArgs,
+		Args: argsValidator(cobra.NoArgs),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			p := printer(cmd)
 			info := currentVersionInfo()

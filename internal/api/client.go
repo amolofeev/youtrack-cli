@@ -234,16 +234,27 @@ func (c *Client) roundTrip(ctx context.Context, method, u string, body []byte) (
 	start := time.Now()
 	resp, err := c.http.Do(req)
 	dur := time.Since(start).Round(time.Millisecond)
+	target := c.logTarget(u)
 	if err != nil {
 		if ctx.Err() != nil {
-			c.logf("DBG %s %s err=%s dur=%s", method, u, context.Canceled, dur)
+			c.logf("DBG %s %s err=%s dur=%s", method, target, context.Canceled, dur)
 			return nil, &Error{Type: ErrorCanceled, Err: ctx.Err()}
 		}
-		c.logf("DBG %s %s err=%s dur=%s", method, u, err, dur)
+		c.logf("DBG %s %s err=%s dur=%s", method, target, err, dur)
 		return nil, &Error{Type: ErrorNetwork, BaseURL: c.baseURL, Err: err}
 	}
-	c.logf("DBG %s %s status=%d dur=%s", method, u, resp.StatusCode, dur)
+	c.logf("DBG %s %s status=%d dur=%s", method, target, resp.StatusCode, dur)
 	return resp, nil
+}
+
+// logTarget возвращает путь и query из полного URL для логов (§4.6): формат
+// «GET /issues?$top=30» без scheme/host, чтобы в лог не попадали учётные
+// данные, которые могут быть частью base URL.
+func (c *Client) logTarget(u string) string {
+	if strings.HasPrefix(u, c.baseURL) {
+		return u[len(c.baseURL):]
+	}
+	return u
 }
 
 func (c *Client) retryable(method string, err error) bool {
