@@ -85,6 +85,14 @@ func NewRootCommand() *cobra.Command {
 	versionCmd.GroupID = "utility"
 	cmd.AddCommand(versionCmd)
 
+	authCmd := newAuthCmd(opts)
+	authCmd.GroupID = "core"
+	cmd.AddCommand(authCmd)
+
+	userCmd := newUserCmd()
+	userCmd.GroupID = "core"
+	cmd.AddCommand(userCmd)
+
 	return cmd
 }
 
@@ -96,14 +104,7 @@ func runPipeline(cmd *cobra.Command, opts *globalOptions) error {
 	if err != nil {
 		return err
 	}
-	timeout, err := config.HTTPTimeout()
-	if err != nil {
-		return err
-	}
-	client, err := api.New(cfg.BaseURL, cfg.Token,
-		api.WithTimeout(timeout),
-		api.WithLogger(newLogger(cmd.ErrOrStderr(), opts.verbose)),
-	)
+	client, err := newAPIClient(cfg.BaseURL, cfg.Token, cmd.ErrOrStderr(), opts.verbose)
 	if err != nil {
 		return err
 	}
@@ -111,6 +112,20 @@ func runPipeline(cmd *cobra.Command, opts *globalOptions) error {
 	ctx = context.WithValue(ctx, clientKey{}, client)
 	cmd.SetContext(ctx)
 	return nil
+}
+
+// newAPIClient создаёт API-клиент с таймаутом и логгером из окружения (§4.5–4.6).
+// Используется pipeline и командами, которым нужен клиент с другим токеном
+// (auth login проверяет введённый токен до сохранения, §3.3).
+func newAPIClient(baseURL, token string, w io.Writer, verbose bool) (*api.Client, error) {
+	timeout, err := config.HTTPTimeout()
+	if err != nil {
+		return nil, err
+	}
+	return api.New(baseURL, token,
+		api.WithTimeout(timeout),
+		api.WithLogger(newLogger(w, verbose)),
+	)
 }
 
 // newLogger создаёт функцию лога для API-клиента (§4.6). По умолчанию уровень
