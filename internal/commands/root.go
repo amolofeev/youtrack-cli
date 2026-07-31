@@ -93,6 +93,10 @@ func NewRootCommand() *cobra.Command {
 	userCmd.GroupID = "core"
 	cmd.AddCommand(userCmd)
 
+	issueCmd := newIssueCmd()
+	issueCmd.GroupID = "issues"
+	cmd.AddCommand(issueCmd)
+
 	return cmd
 }
 
