@@ -496,6 +496,81 @@ func TestListTags(t *testing.T) {
 	}
 }
 
+func TestApplyCommand(t *testing.T) {
+	var reqBody string
+	var gotMethod, gotPath, gotRaw string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, _ := io.ReadAll(r.Body)
+		reqBody = string(data)
+		gotMethod, gotPath, gotRaw = r.Method, r.URL.Path, r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"$type":"CommandList","issues":[{"$type":"Issue","id":"2-1","idReadable":"PRJ-42","summary":"Fix login flow","resolved":1783296000000,"project":{"$type":"Project","id":"0-0","shortName":"PRJ"}}]}`))
+	}))
+	defer ts.Close()
+
+	c, err := newTestClient(ts.URL)
+	if err != nil {
+		t.Fatalf("newTestClient error: %v", err)
+	}
+	res, err := c.ApplyCommand(context.Background(), "state: Fixed", "Resolved by yt", []IssueRef{{IDReadable: "PRJ-42"}}, FieldsCommandIssues)
+	if err != nil {
+		t.Fatalf("ApplyCommand() error: %v", err)
+	}
+	if gotMethod != http.MethodPost || gotPath != "/commands" {
+		t.Errorf("request = %s %s, want POST /commands", gotMethod, gotPath)
+	}
+	if gotRaw != "fields="+FieldsCommandIssues {
+		t.Errorf("raw query = %q, want fields=%s", gotRaw, FieldsCommandIssues)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(reqBody), &sent); err != nil {
+		t.Fatalf("request body is not valid JSON: %v\n%s", err, reqBody)
+	}
+	if sent["query"] != "state: Fixed" {
+		t.Errorf("body query = %v, want state: Fixed", sent["query"])
+	}
+	if sent["comment"] != "Resolved by yt" {
+		t.Errorf("body comment = %v, want Resolved by yt", sent["comment"])
+	}
+	issues, ok := sent["issues"].([]any)
+	if !ok || len(issues) != 1 {
+		t.Fatalf("body issues = %v, want 1 item", sent["issues"])
+	}
+	ref, ok := issues[0].(map[string]any)
+	if !ok || ref["idReadable"] != "PRJ-42" {
+		t.Errorf("issue ref = %v, want {idReadable: PRJ-42}", issues[0])
+	}
+	if len(res.Issues) != 1 || res.Issues[0].IDReadable != "PRJ-42" || res.Issues[0].Resolved == nil {
+		t.Errorf("result = %+v, want PRJ-42 resolved", res.Issues)
+	}
+}
+
+func TestApplyCommandOmitsEmptyComment(t *testing.T) {
+	var reqBody string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, _ := io.ReadAll(r.Body)
+		reqBody = string(data)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"issues":[]}`))
+	}))
+	defer ts.Close()
+
+	c, err := newTestClient(ts.URL)
+	if err != nil {
+		t.Fatalf("newTestClient error: %v", err)
+	}
+	if _, err := c.ApplyCommand(context.Background(), "state: Fixed", "", []IssueRef{{ID: "2-1"}}, FieldsCommandIssues); err != nil {
+		t.Fatalf("ApplyCommand() error: %v", err)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(reqBody), &sent); err != nil {
+		t.Fatalf("request body is not valid JSON: %v\n%s", err, reqBody)
+	}
+	if _, ok := sent["comment"]; ok {
+		t.Errorf("comment present in body with empty value: %v", sent)
+	}
+}
+
 func TestSearch(t *testing.T) {
 	ts, cap := captureRequest(t, `[{"$type":"Issue","id":"2-1","idReadable":"PRJ-1","summary":"S"}]`)
 	defer ts.Close()
