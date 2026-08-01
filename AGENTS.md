@@ -15,19 +15,18 @@
   `make build/lint` с `GO ?= go`), падают с «go command required, not found». Запускай
   с явным PATH: `PATH="$HOME/sdk/go1.24.0/bin:$PATH" make lint` (или ту же команду
   golangci-lint напрямую). `make test`/`make vet` работают и без PATH (Go задан явно).
-- Проверка форматирования — только свой код: `gofmt -l internal cmd`. `gofmt -l .`
-  захватывает `vendor/`, где файлы не по gofmt (это ожидаемо, каталог gitignored).
-- Поведение зависимостей (cobra и т.п.) проверяй юнит-тестом, а не чтением исходников
-  из module cache — тест быстрее, а факт остаётся в коде. Чтение vendor — только для
-  сверки API-сигнатур (например, какой метод есть в cobra v1.10.2), одним заходом:
-  поведение (рендер help, порядок групп) доказывается тестом.
+- Проверка форматирования — только свой код: `gofmt -l internal cmd`.
+- Поведение зависимостей (cobra и т.п.) проверяй юнит-тестом, а не чтением исходников —
+  тест быстрее, а факт остаётся в коде. Сверку API-сигнатур (например, какой метод есть
+  в cobra v1.10.2) делай по исходникам из module cache (`go env GOMODCACHE`), одним
+  заходом: поведение (рендер help, порядок групп) доказывается тестом.
 - Конвенции команд `internal/commands` (Атом 2.4, #25): валидация аргументов — через
   `argsValidator(...)`, иначе голые cobra-валидаторы дают exit 1 вместо 2 (SPEC §4.4).
   API-клиент создаёт pipeline в `PersistentPreRunE` и кладёт в контекст — бери через
   `requireClient(cmd)` / `configFromContext(cmd)`, свой `api.New` не создавай.
-- Если исходники зависимости нужны для чтения: `go mod vendor` — каталог `yt/vendor/`
-  создаётся один раз и остаётся на диске (gitignored, в git не попадает). Читать
-  исходники оттуда, не рыться в системных каталогах (module cache и т.п.).
+- `yt/vendor/` и `yt/bin/` в репозитории не хранятся (gitignored, генерируются).
+  Не создавай их без нужды: для чтения исходников зависимостей пользуйся module cache
+  (`go env GOMODCACHE`), а не `go mod vendor`.
 - Цели Makefile: `make build` → `bin/yt`; `make test`; `make lint`; `make vet`; `make integration`.
 - Версия берётся из корневого `VERSION` (`../VERSION`) и встраивается через `-ldflags`
   в переменные `internal/version.{Version,Commit,Built}`; при сборке без ldflags — `unknown`.
