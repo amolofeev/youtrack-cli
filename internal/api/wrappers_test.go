@@ -208,6 +208,66 @@ func TestIssueComments(t *testing.T) {
 	}
 }
 
+func TestCreateComment(t *testing.T) {
+	var reqBody string
+	var gotMethod, gotPath, gotRaw string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, _ := io.ReadAll(r.Body)
+		reqBody = string(data)
+		gotMethod, gotPath, gotRaw = r.Method, r.URL.Path, r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"$type":"IssueComment","id":"7-1","text":"Fix login flow","created":1782914700000,"author":{"$type":"User","id":"1-1","login":"alex"}}`))
+	}))
+	defer ts.Close()
+
+	c, err := newTestClient(ts.URL)
+	if err != nil {
+		t.Fatalf("newTestClient error: %v", err)
+	}
+	cm, err := c.CreateComment(context.Background(), "PRJ-42", "Fix login flow", FieldsIssueCommentCreate)
+	if err != nil {
+		t.Fatalf("CreateComment() error: %v", err)
+	}
+	if gotMethod != http.MethodPost || gotPath != "/issues/PRJ-42/comments" {
+		t.Errorf("request = %s %s, want POST /issues/PRJ-42/comments", gotMethod, gotPath)
+	}
+	if gotRaw != "fields="+FieldsIssueCommentCreate {
+		t.Errorf("raw query = %q, want fields=%s", gotRaw, FieldsIssueCommentCreate)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(reqBody), &sent); err != nil {
+		t.Fatalf("request body is not valid JSON: %v\n%s", err, reqBody)
+	}
+	if sent["text"] != "Fix login flow" {
+		t.Errorf("body = %v, want text %q", sent, "Fix login flow")
+	}
+	if cm.Type != "IssueComment" || cm.Text != "Fix login flow" || cm.Author == nil || cm.Author.Login != "alex" {
+		t.Errorf("comment = %+v, want IssueComment Fix login flow by alex", cm)
+	}
+}
+
+func TestCreateCommentEscapesPath(t *testing.T) {
+	var gotEscaped string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		gotEscaped = r.URL.EscapedPath()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer ts.Close()
+
+	c, err := newTestClient(ts.URL)
+	if err != nil {
+		t.Fatalf("newTestClient error: %v", err)
+	}
+	if _, err := c.CreateComment(context.Background(), "PRJ 42", "hello", FieldsIssueCommentCreate); err != nil {
+		t.Fatalf("CreateComment() error: %v", err)
+	}
+	if gotEscaped != "/issues/PRJ%2042/comments" {
+		t.Errorf("escaped path = %q, want /issues/PRJ%%2042/comments", gotEscaped)
+	}
+}
+
 func TestCreateIssue(t *testing.T) {
 	var reqBody string
 	var gotMethod, gotPath, gotRaw string

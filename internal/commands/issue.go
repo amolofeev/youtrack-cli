@@ -132,6 +132,7 @@ func newIssueCmd() *cobra.Command {
 	issueCmd.AddCommand(newIssueListCmd())
 	issueCmd.AddCommand(newIssueViewCmd())
 	issueCmd.AddCommand(newIssueCreateCmd())
+	issueCmd.AddCommand(newIssueCommentCmd())
 	return issueCmd
 }
 
@@ -452,6 +453,207 @@ func writeIssueCommentsTTY(p *output.Printer, comments []api.IssueComment) error
 		}
 	}
 	return nil
+}
+
+// commentListDefaultLimit — дефолт --limit для yt issue comment list (SPEC §3.4).
+const commentListDefaultLimit = 30
+
+// commentListRule — разделитель между комментариями в yt issue comment list
+// (SPEC §3.4, пример «────»).
+var commentListRule = strings.Repeat("─", 4)
+
+// newIssueCommentCmd создаёт группу команд yt issue comment (SPEC §3.4).
+func newIssueCommentCmd() *cobra.Command {
+	commentCmd := &cobra.Command{
+		Use:   "comment",
+		Short: "Комментарии к задаче",
+		Args:  argsValidator(cobra.NoArgs),
+		// Runnable: «yt issue comment» — help (exit 0); Args — неизвестная
+		// подкоманда — exit 2 (§4.4).
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return cmd.Help()
+		},
+	}
+	commentCmd.AddCommand(newIssueCommentListCmd())
+	commentCmd.AddCommand(newIssueCommentCreateCmd())
+	return commentCmd
+}
+
+// newIssueCommentListCmd создаёт yt issue comment list (SPEC §3.4): список
+// комментариев задачи (GET /issues/{id}/comments).
+func newIssueCommentListCmd() *cobra.Command {
+	var (
+		limit int
+		skip  int
+	)
+	cmd := &cobra.Command{
+		Use:   "list <id>",
+		Short: "Список комментариев",
+		Long: "Список комментариев задачи (GET /issues/{id}/comments).\n" +
+			"<id> — ring-id или idReadable.\n",
+		Args: argsValidator(cobra.ExactArgs(1)),
+		RunE: runIssueCommentListCmd(&limit, &skip),
+	}
+	flags := cmd.Flags()
+	flags.IntVar(&limit, "limit", commentListDefaultLimit, "максимум комментариев (1..)")
+	flags.IntVar(&skip, "skip", 0, "пропустить первых N комментариев")
+	return cmd
+}
+
+// runIssueCommentListCmd возвращает RunE для yt issue comment list (SPEC §3.4):
+// GET /issues/{id}/comments с полями FieldsIssueComments и $top/$skip.
+func runIssueCommentListCmd(limit, skip *int) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		if *limit < 1 {
+			return usageError(fmt.Errorf("--limit must be at least 1"))
+		}
+		if *skip < 0 {
+			return usageError(fmt.Errorf("--skip must be non-negative"))
+		}
+
+		client, err := requireClient(cmd)
+		if err != nil {
+			return err
+		}
+
+		id := args[0]
+		comments, err := client.IssueComments(cmd.Context(), id, api.FieldsIssueComments, *limit, *skip)
+		if err != nil {
+			return err
+		}
+
+		p := printer(cmd)
+		if p.JSON() {
+			return writeCommentsJSON(p, comments)
+		}
+		return writeCommentListTTY(p, comments, id)
+	}
+}
+
+// writeCommentsJSON сериализует список комментариев в JSON (SPEC §3.4).
+func writeCommentsJSON(p *output.Printer, comments []api.IssueComment) error {
+	if comments == nil {
+		comments = []api.IssueComment{}
+	}
+	return p.WriteJSON(comments)
+}
+
+// writeCommentListTTY печатает список комментариев (SPEC §3.4): для каждого —
+// строка «автор · дата», текст, разделитель ──── между комментариями. Пустой
+// список — «No comments for <id>».
+func writeCommentListTTY(p *output.Printer, comments []api.IssueComment, id string) error {
+	if len(comments) == 0 {
+		return p.Linef("No comments for %s", id)
+	}
+	for i, c := range comments {
+		line := commentAuthor(c)
+		if when := formatDateTime(c.Created); when != "" {
+			line += " · " + when
+		}
+		if err := p.Linef("%s", line); err != nil {
+			return err
+		}
+		if c.Text != "" {
+			for _, l := range strings.Split(strings.TrimSuffix(c.Text, "\n"), "\n") {
+				if err := p.Linef("%s", l); err != nil {
+					return err
+				}
+			}
+		}
+		if i < len(comments)-1 {
+			if err := p.Linef("%s", commentListRule); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// newIssueCommentCreateCmd создаёт yt issue comment create (SPEC §3.4):
+// добавление комментария (POST /issues/{id}/comments). Текст — -m/--message
+// либо --editor.
+func newIssueCommentCreateCmd() *cobra.Command {
+	var (
+		message string
+		editor  bool
+	)
+	cmd := &cobra.Command{
+		Use:   "create <id>",
+		Short: "Добавить комментарий",
+		Long: "Добавление комментария к задаче (POST /issues/{id}/comments).\n" +
+			"<id> — ring-id или idReadable.\n" +
+			"Текст: -m/--message либо --editor ($EDITOR или vi).\n",
+		Args: argsValidator(cobra.ExactArgs(1)),
+		RunE: runIssueCommentCreateCmd(&message, &editor),
+	}
+	flags := cmd.Flags()
+	flags.StringVarP(&message, "message", "m", "", "текст комментария")
+	flags.BoolVar(&editor, "editor", false, "ввод текста через $EDITOR (или vi)")
+	return cmd
+}
+
+// runIssueCommentCreateCmd возвращает RunE для yt issue comment create
+// (SPEC §3.4): валидация флагов, ввод текста, POST /issues/{id}/comments,
+// вывод результата.
+func runIssueCommentCreateCmd(message *string, editor *bool) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		if *editor && *message != "" {
+			return usageError(errors.New("--message and --editor are mutually exclusive"))
+		}
+		if *message == "" && !*editor {
+			return usageError(errors.New("--message is required (or use --editor)"))
+		}
+
+		client, err := requireClient(cmd)
+		if err != nil {
+			return err
+		}
+
+		text := *message
+		if *editor {
+			text, err = editCommentText(cmd)
+			if err != nil {
+				return err
+			}
+			if text == "" {
+				return errors.New("no comment text provided")
+			}
+		}
+
+		id := args[0]
+		comment, err := client.CreateComment(cmd.Context(), id, text, api.FieldsIssueCommentCreate)
+		if err != nil {
+			return err
+		}
+
+		p := printer(cmd)
+		if p.JSON() {
+			return p.WriteJSON(comment)
+		}
+		return p.Successf("Added comment to %s", id)
+	}
+}
+
+// editCommentText открывает редактор с пустым буфером над временным файлом и
+// возвращает введённый текст комментария (SPEC §3.4). Возвращает пустую
+// строку, если редактор оставил буфер пустым.
+func editCommentText(cmd *cobra.Command) (string, error) {
+	f, err := os.CreateTemp("", "yt-comment-*.txt")
+	if err != nil {
+		return "", fmt.Errorf("create temp file: %w", err)
+	}
+	defer os.Remove(f.Name())
+	if err := f.Close(); err != nil {
+		return "", fmt.Errorf("close temp file: %w", err)
+	}
+	if err := runEditor(cmd, f.Name()); err != nil {
+		return "", err
+	}
+	data, err := os.ReadFile(f.Name())
+	if err != nil {
+		return "", fmt.Errorf("read edited file: %w", err)
+	}
+	return strings.TrimSpace(string(data)), nil
 }
 
 // projectRingID — паттерн ring-id проекта (SPEC §3.4): «0-0» и т.п. При
