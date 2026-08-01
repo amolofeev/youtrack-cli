@@ -1,7 +1,12 @@
 package commands
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"os"
+	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 
@@ -126,6 +131,7 @@ func newIssueCmd() *cobra.Command {
 	}
 	issueCmd.AddCommand(newIssueListCmd())
 	issueCmd.AddCommand(newIssueViewCmd())
+	issueCmd.AddCommand(newIssueCreateCmd())
 	return issueCmd
 }
 
@@ -444,6 +450,183 @@ func writeIssueCommentsTTY(p *output.Printer, comments []api.IssueComment) error
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+// projectRingID — паттерн ring-id проекта (SPEC §3.4): «0-0» и т.п. При
+// совпадении --project используется как есть, без резолвинга.
+var projectRingID = regexp.MustCompile(`^[0-9]+-[0-9]+$`)
+
+// newIssueCreateCmd создаёт yt issue create (SPEC §3.4): создание задачи.
+// --project резолвится в ring-id проекта, текст берётся из флагов или --editor.
+func newIssueCreateCmd() *cobra.Command {
+	var (
+		project string
+		title   string
+		body    string
+		editor  bool
+	)
+	cmd := &cobra.Command{
+		Use:   "create",
+		Short: "Создать задачу",
+		Long: "Создание задачи (POST /issues).\n" +
+			"--project: shortName, имя или ring-id проекта (обязателен).\n" +
+			"Текст: --title/--body либо --editor ($EDITOR или vi).\n",
+		Args: argsValidator(cobra.NoArgs),
+		RunE: runIssueCreateCmd(&project, &title, &body, &editor),
+	}
+	flags := cmd.Flags()
+	flags.StringVarP(&project, "project", "p", "", "проект: shortName, имя или ring-id")
+	flags.StringVarP(&title, "title", "t", "", "summary задачи")
+	flags.StringVarP(&body, "body", "b", "", "description задачи (взаимоисключающе с --editor)")
+	flags.BoolVar(&editor, "editor", false, "ввод текста через $EDITOR (или vi)")
+	return cmd
+}
+
+// runIssueCreateCmd возвращает RunE для yt issue create (SPEC §3.4):
+// валидация флагов, резолвинг проекта, POST /issues, вывод результата.
+func runIssueCreateCmd(project, title, body *string, editor *bool) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		if *editor && *body != "" {
+			return usageError(errors.New("--body and --editor are mutually exclusive"))
+		}
+		if *project == "" {
+			return usageError(errors.New("--project is required"))
+		}
+		if *title == "" && !*editor {
+			return usageError(errors.New("--title is required (or use --editor)"))
+		}
+
+		client, err := requireClient(cmd)
+		if err != nil {
+			return err
+		}
+
+		summary, description := *title, *body
+		if *editor {
+			summary, description, err = editIssueText(cmd, summary)
+			if err != nil {
+				return err
+			}
+			if summary == "" {
+				return errors.New("no summary provided")
+			}
+		}
+
+		projectID, err := resolveProject(cmd.Context(), client, *project)
+		if err != nil {
+			return err
+		}
+
+		it, err := client.CreateIssue(cmd.Context(), projectID, summary, description, api.FieldsIssueCreate)
+		if err != nil {
+			return err
+		}
+
+		p := printer(cmd)
+		if p.JSON() {
+			return p.WriteJSON(it)
+		}
+		return p.Successf("Created issue %s: %s", issueID(*it), it.Summary)
+	}
+}
+
+// resolveProject резолвит значение --project в ring-id (SPEC §3.4): ring-id
+// (^[0-9]+-[0-9]+$) используется как есть; иначе GET /admin/projects с
+// клиентской фильтрацией — совпадение по shortName без учёта регистра, затем
+// по name. Не найдено — ошибка «project <value> not found».
+func resolveProject(ctx context.Context, client *api.Client, value string) (string, error) {
+	if projectRingID.MatchString(value) {
+		return value, nil
+	}
+	projects, err := client.ListProjects(ctx, api.FieldsProjectResolve, 200, 0)
+	if err != nil {
+		return "", err
+	}
+	for _, p := range projects {
+		if strings.EqualFold(p.ShortName, value) {
+			return p.ID, nil
+		}
+	}
+	for _, p := range projects {
+		if strings.EqualFold(p.Name, value) {
+			return p.ID, nil
+		}
+	}
+	return "", fmt.Errorf("project %s not found", value)
+}
+
+// editorTemplate возвращает стартовый шаблон редактора (SPEC §3.4): строка
+// Summary: предзаполняется title (если задан), Description: — пустая.
+func editorTemplate(title string) string {
+	return "Summary: " + title + "\n\nDescription:\n"
+}
+
+// parseEditorContent разбирает содержимое файла редактора (SPEC §3.4):
+// строка «Summary: <текст>» — summary, всё после строки «Description:» —
+// description (может быть пустым).
+func parseEditorContent(content string) (summary, description string) {
+	lines := strings.Split(content, "\n")
+	descIdx := -1
+	for i, l := range lines {
+		if strings.HasPrefix(l, "Description:") {
+			descIdx = i
+			break
+		}
+	}
+	if descIdx >= 0 {
+		description = strings.TrimSpace(strings.Join(lines[descIdx+1:], "\n"))
+	}
+	for _, l := range lines {
+		if strings.HasPrefix(l, "Summary:") {
+			summary = strings.TrimSpace(strings.TrimPrefix(l, "Summary:"))
+			break
+		}
+	}
+	return summary, description
+}
+
+// editIssueText открывает редактор с шаблоном Summary:/Description: над
+// временным файлом и возвращает введённые summary и description (SPEC §3.4).
+func editIssueText(cmd *cobra.Command, title string) (string, string, error) {
+	f, err := os.CreateTemp("", "yt-issue-*.txt")
+	if err != nil {
+		return "", "", fmt.Errorf("create temp file: %w", err)
+	}
+	defer os.Remove(f.Name())
+	if _, err := f.WriteString(editorTemplate(title)); err != nil {
+		_ = f.Close()
+		return "", "", fmt.Errorf("write template: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return "", "", fmt.Errorf("close temp file: %w", err)
+	}
+	if err := runEditor(cmd, f.Name()); err != nil {
+		return "", "", err
+	}
+	data, err := os.ReadFile(f.Name())
+	if err != nil {
+		return "", "", fmt.Errorf("read edited file: %w", err)
+	}
+	summary, description := parseEditorContent(string(data))
+	return summary, description, nil
+}
+
+// runEditor запускает $EDITOR (или vi) над файлом path, наследуя потоки
+// команды. Ошибка редактора возвращается обёрнутой (exit 1).
+func runEditor(cmd *cobra.Command, path string) error {
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = "vi"
+	}
+	parts := strings.Fields(editor)
+	c := exec.Command(parts[0], append(parts[1:], path)...)
+	c.Stdin = cmd.InOrStdin()
+	c.Stdout = cmd.OutOrStdout()
+	c.Stderr = cmd.ErrOrStderr()
+	if err := c.Run(); err != nil {
+		return fmt.Errorf("editor failed: %w", err)
 	}
 	return nil
 }

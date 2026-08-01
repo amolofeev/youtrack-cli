@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -204,6 +205,77 @@ func TestIssueComments(t *testing.T) {
 	cm := comments[0]
 	if cm.Type != "IssueComment" || cm.Text != "hello" || cm.Author == nil || cm.Author.Login != "alex" {
 		t.Errorf("comment = %+v, want IssueComment hello by alex", cm)
+	}
+}
+
+func TestCreateIssue(t *testing.T) {
+	var reqBody string
+	var gotMethod, gotPath, gotRaw string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, _ := io.ReadAll(r.Body)
+		reqBody = string(data)
+		gotMethod, gotPath, gotRaw = r.Method, r.URL.Path, r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"$type":"Issue","id":"2-1","idReadable":"PRJ-42","summary":"Fix login flow","project":{"$type":"Project","id":"0-0","shortName":"PRJ"}}`))
+	}))
+	defer ts.Close()
+
+	c, err := newTestClient(ts.URL)
+	if err != nil {
+		t.Fatalf("newTestClient error: %v", err)
+	}
+	it, err := c.CreateIssue(context.Background(), "0-0", "Fix login flow", "Steps:\n1. Reproduce.", FieldsIssueCreate)
+	if err != nil {
+		t.Fatalf("CreateIssue() error: %v", err)
+	}
+	if gotMethod != http.MethodPost || gotPath != "/issues" {
+		t.Errorf("request = %s %s, want POST /issues", gotMethod, gotPath)
+	}
+	if gotRaw != "fields="+FieldsIssueCreate {
+		t.Errorf("raw query = %q, want fields=%s", gotRaw, FieldsIssueCreate)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(reqBody), &sent); err != nil {
+		t.Fatalf("request body is not valid JSON: %v\n%s", err, reqBody)
+	}
+	proj, ok := sent["project"].(map[string]any)
+	if !ok || proj["id"] != "0-0" {
+		t.Errorf("project = %v, want {id: 0-0}", sent["project"])
+	}
+	if sent["summary"] != "Fix login flow" || sent["description"] != "Steps:\n1. Reproduce." {
+		t.Errorf("body = %v, want summary and description", sent)
+	}
+	if it.IDReadable != "PRJ-42" || it.Summary != "Fix login flow" {
+		t.Errorf("issue = %+v, want PRJ-42", it)
+	}
+}
+
+func TestCreateIssueOmitsEmptyDescription(t *testing.T) {
+	var reqBody string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, _ := io.ReadAll(r.Body)
+		reqBody = string(data)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"2-1"}`))
+	}))
+	defer ts.Close()
+
+	c, err := newTestClient(ts.URL)
+	if err != nil {
+		t.Fatalf("newTestClient error: %v", err)
+	}
+	if _, err := c.CreateIssue(context.Background(), "0-0", "T", "", FieldsIssueCreate); err != nil {
+		t.Fatalf("CreateIssue() error: %v", err)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(reqBody), &sent); err != nil {
+		t.Fatalf("request body is not valid JSON: %v\n%s", err, reqBody)
+	}
+	if _, ok := sent["description"]; ok {
+		t.Errorf("description present in body with empty value: %v", sent)
+	}
+	if sent["summary"] != "T" {
+		t.Errorf("summary = %v, want T", sent["summary"])
 	}
 }
 

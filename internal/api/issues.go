@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 	"strconv"
 )
@@ -46,6 +47,37 @@ func (c *Client) Issue(ctx context.Context, id, fields string) (*Issue, error) {
 	}
 	var out Issue
 	if err := c.Get(ctx, "/issues/"+EscapePath(id), q, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// issueCreateRequest — тело POST /issues при yt issue create (SPEC §3.4).
+// project передаётся как ring-id; description опускается при пустой строке.
+type issueCreateRequest struct {
+	Project     Project `json:"project"`
+	Summary     string  `json:"summary"`
+	Description string  `json:"description,omitempty"`
+}
+
+// CreateIssue создаёт задачу (POST /issues, SPEC §3.4). projectID — ring-id
+// уже резолвинутого проекта (yt issue create), summary/description — текст
+// задачи. fields — FieldsIssueCreate.
+func (c *Client) CreateIssue(ctx context.Context, projectID, summary, description, fields string) (*Issue, error) {
+	body, err := json.Marshal(issueCreateRequest{
+		Project:     Project{ID: projectID},
+		Summary:     summary,
+		Description: description,
+	})
+	if err != nil {
+		return nil, err
+	}
+	q := url.Values{}
+	if fields != "" {
+		q.Set("fields", fields)
+	}
+	var out Issue
+	if err := c.Post(ctx, "/issues", q, body, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
