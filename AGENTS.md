@@ -66,3 +66,8 @@
   Перед смоуком после правок кода пересобирай `bin/yt`
   (`PATH="$HOME/sdk/go1.24.0/bin:$PATH" make build`): stale-бинарь выдаёт
   вводящие в заблуждение ошибки («unknown flag», «unknown command»).
+  TTY-зависимое поведение (pager, ANSI-цвета) проверяй под настоящим pty:
+  stdout bash-инструмента — не терминал, поэтому pager не запустится, а цвета
+  выключатся. Обёртка: `script -qec '<cmd>' /dev/null` (выделяет pty).
+  Для pager-а задавай `PAGER='<stub> <out>'` и сверяй, что контент ушёл
+  в файл stub-а, а не в pty.
