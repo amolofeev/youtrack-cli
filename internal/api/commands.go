@@ -17,17 +17,20 @@ type IssueRef struct {
 type commandRequest struct {
 	Query   string     `json:"query"`
 	Comment string     `json:"comment,omitempty"`
+	RunAs   string     `json:"runAs,omitempty"`
 	Issues  []IssueRef `json:"issues"`
 }
 
 // ApplyCommand применяет командный язык YouTrack к списку задач (POST
 // /commands, SPEC §3.4, §3.6). query — команда («state: Fixed»), comment —
-// комментарий к применению (может быть пустым), issues — ссылки на задачи.
-// fields — FieldsCommandIssues.
-func (c *Client) ApplyCommand(ctx context.Context, query, comment string, issues []IssueRef, fields string) (*CommandList, error) {
+// комментарий к применению (может быть пустым), runAs — пользователь, от
+// имени которого исполняется команда (пусто — текущий пользователь),
+// issues — ссылки на задачи. fields — FieldsCommandIssues.
+func (c *Client) ApplyCommand(ctx context.Context, query, comment, runAs string, issues []IssueRef, fields string) (*CommandList, error) {
 	body, err := json.Marshal(commandRequest{
 		Query:   query,
 		Comment: comment,
+		RunAs:   runAs,
 		Issues:  issues,
 	})
 	if err != nil {

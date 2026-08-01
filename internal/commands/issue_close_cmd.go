@@ -69,7 +69,7 @@ func runIssueCloseCmd(state, message *string, yes *bool) func(*cobra.Command, []
 		}
 
 		query := "state: " + *state
-		res, err := client.ApplyCommand(cmd.Context(), query, *message, refs, api.FieldsCommandIssues)
+		res, err := client.ApplyCommand(cmd.Context(), query, *message, "", refs, api.FieldsCommandIssues)
 		if err != nil {
 			return err
 		}

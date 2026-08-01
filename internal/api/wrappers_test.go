@@ -544,7 +544,7 @@ func TestApplyCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newTestClient error: %v", err)
 	}
-	res, err := c.ApplyCommand(context.Background(), "state: Fixed", "Resolved by yt", []IssueRef{{IDReadable: "PRJ-42"}}, FieldsCommandIssues)
+	res, err := c.ApplyCommand(context.Background(), "state: Fixed", "Resolved by yt", "", []IssueRef{{IDReadable: "PRJ-42"}}, FieldsCommandIssues)
 	if err != nil {
 		t.Fatalf("ApplyCommand() error: %v", err)
 	}
@@ -591,7 +591,7 @@ func TestApplyCommandOmitsEmptyComment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newTestClient error: %v", err)
 	}
-	if _, err := c.ApplyCommand(context.Background(), "state: Fixed", "", []IssueRef{{ID: "2-1"}}, FieldsCommandIssues); err != nil {
+	if _, err := c.ApplyCommand(context.Background(), "state: Fixed", "", "", []IssueRef{{ID: "2-1"}}, FieldsCommandIssues); err != nil {
 		t.Fatalf("ApplyCommand() error: %v", err)
 	}
 	var sent map[string]any
@@ -600,6 +600,35 @@ func TestApplyCommandOmitsEmptyComment(t *testing.T) {
 	}
 	if _, ok := sent["comment"]; ok {
 		t.Errorf("comment present in body with empty value: %v", sent)
+	}
+	if _, ok := sent["runAs"]; ok {
+		t.Errorf("runAs present in body with empty value: %v", sent)
+	}
+}
+
+func TestApplyCommandSendsRunAs(t *testing.T) {
+	var reqBody string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, _ := io.ReadAll(r.Body)
+		reqBody = string(data)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"issues":[]}`))
+	}))
+	defer ts.Close()
+
+	c, err := newTestClient(ts.URL)
+	if err != nil {
+		t.Fatalf("newTestClient error: %v", err)
+	}
+	if _, err := c.ApplyCommand(context.Background(), "state: Fixed", "", "alex", []IssueRef{{IDReadable: "PRJ-42"}}, FieldsCommandIssues); err != nil {
+		t.Fatalf("ApplyCommand() error: %v", err)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(reqBody), &sent); err != nil {
+		t.Fatalf("request body is not valid JSON: %v\n%s", err, reqBody)
+	}
+	if sent["runAs"] != "alex" {
+		t.Errorf("body runAs = %v, want alex", sent["runAs"])
 	}
 }
 
