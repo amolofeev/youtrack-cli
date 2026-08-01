@@ -431,6 +431,38 @@ func TestUpdateIssueEscapesPath(t *testing.T) {
 	}
 }
 
+func TestDeleteIssue(t *testing.T) {
+	ts, cap := captureRequest(t, "")
+	defer ts.Close()
+
+	c, err := newTestClient(ts.URL)
+	if err != nil {
+		t.Fatalf("newTestClient error: %v", err)
+	}
+	if err := c.DeleteIssue(context.Background(), "PRJ-42"); err != nil {
+		t.Fatalf("DeleteIssue() error: %v", err)
+	}
+	if cap.method != http.MethodDelete || cap.path != "/issues/PRJ-42" {
+		t.Errorf("request = %s %s, want DELETE /issues/PRJ-42", cap.method, cap.path)
+	}
+}
+
+func TestDeleteIssueEscapesPath(t *testing.T) {
+	ts, cap := captureRequest(t, "")
+	defer ts.Close()
+
+	c, err := newTestClient(ts.URL)
+	if err != nil {
+		t.Fatalf("newTestClient error: %v", err)
+	}
+	if err := c.DeleteIssue(context.Background(), "PRJ 42"); err != nil {
+		t.Fatalf("DeleteIssue() error: %v", err)
+	}
+	if cap.escapedPath != "/issues/PRJ%2042" {
+		t.Errorf("escaped path = %q, want /issues/PRJ%%2042", cap.escapedPath)
+	}
+}
+
 func TestListProjects(t *testing.T) {
 	ts, cap := captureRequest(t, `[{"$type":"Project","id":"3-1","name":"Demo","shortName":"DEMO","archived":false,"leader":{"$type":"User","id":"1-1","login":"alex","fullName":"Alex"}}]`)
 	defer ts.Close()

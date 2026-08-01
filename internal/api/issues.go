@@ -113,3 +113,10 @@ func (c *Client) UpdateIssue(ctx context.Context, id, fields string, summary, de
 	}
 	return &out, nil
 }
+
+// DeleteIssue удаляет задачу (DELETE /issues/{id}, SPEC §3.4). id — ring-id
+// или idReadable, передаётся без преобразований с URL-кодированием (§4.1).
+// Ответ сервера — 200 без тела.
+func (c *Client) DeleteIssue(ctx context.Context, id string) error {
+	return c.Delete(ctx, "/issues/"+EscapePath(id))
+}
