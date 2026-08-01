@@ -387,6 +387,9 @@ func commentAuthor(c api.IssueComment) string {
 // ─, метаданные, теги, описание (или «No description») и, при --comments,
 // секцию Comments.
 func writeIssueViewTTY(p *output.Printer, it *api.Issue) error {
+	if p.Page() {
+		defer func() { _ = p.EndPage() }()
+	}
 	header := issueID(*it)
 	if it.Summary != "" {
 		header += "  " + it.Summary
@@ -547,6 +550,9 @@ func writeCommentsJSON(p *output.Printer, comments []api.IssueComment) error {
 func writeCommentListTTY(p *output.Printer, comments []api.IssueComment, id string) error {
 	if len(comments) == 0 {
 		return p.Linef("No comments for %s", id)
+	}
+	if p.Page() {
+		defer func() { _ = p.EndPage() }()
 	}
 	for i, c := range comments {
 		line := commentAuthor(c)

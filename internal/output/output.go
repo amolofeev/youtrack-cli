@@ -35,13 +35,28 @@ func WithWidth(n int) Option {
 	return func(p *Printer) { p.width = n }
 }
 
+// WithVerbose помечает команду как --verbose: pager при этом не запускается
+// (SPEC §4.3).
+func WithVerbose(v bool) Option {
+	return func(p *Printer) { p.verbose = v }
+}
+
+// WithTerminal принудительно задаёт признак «stdout — терминал» (по умолчанию —
+// определяется автоматически через IsTerminal). Нужен для тестов pager-а.
+func WithTerminal(t bool) Option {
+	return func(p *Printer) { p.terminal = &t }
+}
+
 // Printer рендерит вывод команды в заданном режиме.
 type Printer struct {
-	out   io.Writer
-	errw  io.Writer
-	mode  Mode
-	color bool
-	width int
+	out      io.Writer
+	errw     io.Writer
+	mode     Mode
+	color    bool
+	width    int
+	verbose  bool
+	terminal *bool
+	paging   *pagerState
 }
 
 // New создаёт Printer. out — stdout (только данные), errw — stderr (только

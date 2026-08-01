@@ -55,7 +55,7 @@ func NewRootCommand() *cobra.Command {
 			if opts.json {
 				mode = output.ModeJSON
 			}
-			printer := output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), mode)
+			printer := output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), mode, output.WithVerbose(opts.verbose))
 			ctx := context.WithValue(cmd.Context(), printerKey{}, printer)
 			cmd.SetContext(ctx)
 			return runPipeline(cmd, opts)
