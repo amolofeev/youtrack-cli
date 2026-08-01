@@ -24,12 +24,13 @@
 - Модуль: `github.com/amolofeev/prompt-and-pray`; структура `cmd/` + `internal/` — по
   SPEC §2.2, раскладка по пакетам — `docs/structure.md`.
 - Инструментарий: путь до Go — `~/sdk/go1.24.0/bin/go` (не в PATH), пользуйся им
-  напрямую; golangci-lint — `~/go/bin/golangci-lint` (v1.64+).
+  напрямую; gofmt — там же (`~/sdk/go1.24.0/bin/gofmt`); golangci-lint —
+  `~/go/bin/golangci-lint` (v1.64+).
 - Так как Go нет в PATH, инструменты, зовущие `go` из PATH (golangci-lint, а также
   `make build/lint` с `GO ?= go`), падают с «go command required, not found». Запускай
   с явным PATH: `PATH="$HOME/sdk/go1.24.0/bin:$PATH" make lint` (или ту же команду
   golangci-lint напрямую). `make test`/`make vet` работают и без PATH (Go задан явно).
-- Проверка форматирования — только свой код: `gofmt -l internal cmd`.
+- Проверка форматирования — только свой код: `~/sdk/go1.24.0/bin/gofmt -l internal cmd`.
 - Поведение зависимостей (cobra и т.п.) проверяй юнит-тестом, а не чтением исходников —
   тест быстрее, а факт остаётся в коде. Сверку API-сигнатур (например, какой метод есть
   в cobra v1.10.2) делай по исходникам из module cache (`go env GOMODCACHE`), одним
