@@ -9,7 +9,7 @@ CLI-утилита для YouTrack (Go, cobra). Модуль `github.com/amolofe
 | --- | --- |
 | `cmd/yt/` | Точка входа (`main.go`) |
 | `internal/api/` | HTTP-клиент YouTrack (auth, client, comments, fields, issues, projects, search, tags) |
-| `internal/commands/` | cobra-команды: `root`, `auth`, `issue`, `version` + валидация/конвенции |
+| `internal/commands/` | cobra-команды: `root`, `auth`, `issue`, `search`, `version` + валидация/конвенции |
 | `internal/config/` | Конфигурация (файл конфига, token/auth) |
 | `internal/output/` | Рендер результата: TTY-таблицы и `--json` |
 | `internal/version/` | Версия/commit/build, встраиваются через `-ldflags` |
