@@ -82,3 +82,34 @@ func (c *Client) CreateIssue(ctx context.Context, projectID, summary, descriptio
 	}
 	return &out, nil
 }
+
+// issueUpdateRequest — тело POST /issues/{id} при yt issue edit (SPEC §3.4).
+// Частичное обновление: nil означает «поле не изменять», пустая строка
+// передаётся серверу как есть.
+type issueUpdateRequest struct {
+	Summary     *string `json:"summary,omitempty"`
+	Description *string `json:"description,omitempty"`
+}
+
+// UpdateIssue обновляет задачу (POST /issues/{id}, SPEC §3.4). id — ring-id
+// или idReadable, передаётся без преобразований с URL-кодированием (§4.1).
+// summary/description — частичное обновление: nil — поле не изменяется.
+// fields — FieldsIssueEdit.
+func (c *Client) UpdateIssue(ctx context.Context, id, fields string, summary, description *string) (*Issue, error) {
+	body, err := json.Marshal(issueUpdateRequest{
+		Summary:     summary,
+		Description: description,
+	})
+	if err != nil {
+		return nil, err
+	}
+	q := url.Values{}
+	if fields != "" {
+		q.Set("fields", fields)
+	}
+	var out Issue
+	if err := c.Post(ctx, "/issues/"+EscapePath(id), q, body, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}

@@ -339,6 +339,98 @@ func TestCreateIssueOmitsEmptyDescription(t *testing.T) {
 	}
 }
 
+func TestUpdateIssue(t *testing.T) {
+	var reqBody string
+	var gotMethod, gotPath, gotRaw string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, _ := io.ReadAll(r.Body)
+		reqBody = string(data)
+		gotMethod, gotPath, gotRaw = r.Method, r.URL.Path, r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"$type":"Issue","id":"2-1","idReadable":"PRJ-42","summary":"New summary","description":"New description"}`))
+	}))
+	defer ts.Close()
+
+	c, err := newTestClient(ts.URL)
+	if err != nil {
+		t.Fatalf("newTestClient error: %v", err)
+	}
+	summary, description := "New summary", "New description"
+	it, err := c.UpdateIssue(context.Background(), "PRJ-42", FieldsIssueEdit, &summary, &description)
+	if err != nil {
+		t.Fatalf("UpdateIssue() error: %v", err)
+	}
+	if gotMethod != http.MethodPost || gotPath != "/issues/PRJ-42" {
+		t.Errorf("request = %s %s, want POST /issues/PRJ-42", gotMethod, gotPath)
+	}
+	if gotRaw != "fields="+FieldsIssueEdit {
+		t.Errorf("raw query = %q, want fields=%s", gotRaw, FieldsIssueEdit)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(reqBody), &sent); err != nil {
+		t.Fatalf("request body is not valid JSON: %v\n%s", err, reqBody)
+	}
+	if sent["summary"] != "New summary" || sent["description"] != "New description" {
+		t.Errorf("body = %v, want summary and description", sent)
+	}
+	if it.IDReadable != "PRJ-42" || it.Summary != "New summary" || it.Description != "New description" {
+		t.Errorf("issue = %+v, want PRJ-42 / New summary / New description", it)
+	}
+}
+
+func TestUpdateIssuePartial(t *testing.T) {
+	var reqBody string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, _ := io.ReadAll(r.Body)
+		reqBody = string(data)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"2-1"}`))
+	}))
+	defer ts.Close()
+
+	c, err := newTestClient(ts.URL)
+	if err != nil {
+		t.Fatalf("newTestClient error: %v", err)
+	}
+	title := "Only title"
+	if _, err := c.UpdateIssue(context.Background(), "PRJ-42", FieldsIssueEdit, &title, nil); err != nil {
+		t.Fatalf("UpdateIssue() error: %v", err)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(reqBody), &sent); err != nil {
+		t.Fatalf("request body is not valid JSON: %v\n%s", err, reqBody)
+	}
+	if sent["summary"] != "Only title" {
+		t.Errorf("summary = %v, want Only title", sent["summary"])
+	}
+	if _, ok := sent["description"]; ok {
+		t.Errorf("description present in body, want omitted: %v", sent)
+	}
+}
+
+func TestUpdateIssueEscapesPath(t *testing.T) {
+	var gotEscaped string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		gotEscaped = r.URL.EscapedPath()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer ts.Close()
+
+	c, err := newTestClient(ts.URL)
+	if err != nil {
+		t.Fatalf("newTestClient error: %v", err)
+	}
+	title := "T"
+	if _, err := c.UpdateIssue(context.Background(), "PRJ 42", FieldsIssueEdit, &title, nil); err != nil {
+		t.Fatalf("UpdateIssue() error: %v", err)
+	}
+	if gotEscaped != "/issues/PRJ%2042" {
+		t.Errorf("escaped path = %q, want /issues/PRJ%%2042", gotEscaped)
+	}
+}
+
 func TestListProjects(t *testing.T) {
 	ts, cap := captureRequest(t, `[{"$type":"Project","id":"3-1","name":"Demo","shortName":"DEMO","archived":false,"leader":{"$type":"User","id":"1-1","login":"alex","fullName":"Alex"}}]`)
 	defer ts.Close()

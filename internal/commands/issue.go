@@ -132,6 +132,7 @@ func newIssueCmd() *cobra.Command {
 	issueCmd.AddCommand(newIssueListCmd())
 	issueCmd.AddCommand(newIssueViewCmd())
 	issueCmd.AddCommand(newIssueCreateCmd())
+	issueCmd.AddCommand(newIssueEditCmd())
 	issueCmd.AddCommand(newIssueCommentCmd())
 	return issueCmd
 }
@@ -731,6 +732,65 @@ func runIssueCreateCmd(project, title, body *string, editor *bool) func(*cobra.C
 			return p.WriteJSON(it)
 		}
 		return p.Successf("Created issue %s: %s", issueID(*it), it.Summary)
+	}
+}
+
+// newIssueEditCmd создаёт yt issue edit (SPEC §3.4): частичное обновление
+// задачи (POST /issues/{id}). --title/--body — хотя бы один обязателен.
+func newIssueEditCmd() *cobra.Command {
+	var (
+		title string
+		body  string
+	)
+	cmd := &cobra.Command{
+		Use:   "edit <id>",
+		Short: "Изменить задачу",
+		Long: "Изменение задачи (POST /issues/{id}).\n" +
+			"<id> — ring-id или idReadable.\n" +
+			"Частичное обновление: изменяется только то, что передано\n" +
+			"через --title и/или --body (хотя бы один обязателен).\n",
+		Args: argsValidator(cobra.ExactArgs(1)),
+		RunE: runIssueEditCmd(&title, &body),
+	}
+	flags := cmd.Flags()
+	flags.StringVar(&title, "title", "", "новый summary")
+	flags.StringVar(&body, "body", "", "новый description")
+	return cmd
+}
+
+// runIssueEditCmd возвращает RunE для yt issue edit (SPEC §3.4): валидация
+// «хотя бы один из --title/--body», частичное обновление (nil — поле не
+// меняется), POST /issues/{id}, вывод результата.
+func runIssueEditCmd(title, body *string) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		if *title == "" && *body == "" {
+			return usageError(errors.New("at least one of --title, --body is required"))
+		}
+
+		client, err := requireClient(cmd)
+		if err != nil {
+			return err
+		}
+
+		var summary, description *string
+		if *title != "" {
+			summary = title
+		}
+		if *body != "" {
+			description = body
+		}
+
+		id := args[0]
+		it, err := client.UpdateIssue(cmd.Context(), id, api.FieldsIssueEdit, summary, description)
+		if err != nil {
+			return err
+		}
+
+		p := printer(cmd)
+		if p.JSON() {
+			return p.WriteJSON(it)
+		}
+		return p.Successf("Updated issue %s", issueID(*it))
 	}
 }
 
