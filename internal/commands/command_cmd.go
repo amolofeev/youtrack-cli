@@ -13,7 +13,7 @@ import (
 // newCommandCmd создаёт yt command (SPEC §3.6): применение командного языка
 // YouTrack к одной или нескольким задачам (POST /commands). Первый аргумент —
 // команда («state: Fixed Priority: High»), остальные — id задач. Все id
-// применяются одним запросом.
+// применяются одним запросом. Подкоманда assist — подсказки без применения.
 func newCommandCmd() *cobra.Command {
 	var (
 		message string
@@ -34,7 +34,64 @@ func newCommandCmd() *cobra.Command {
 	flags.StringVarP(&message, "message", "m", "", "комментарий, добавляемый вместе с командой")
 	flags.StringVar(&runAs, "run-as", "", "исполнить команду от имени другого пользователя (если разрешено)")
 	flags.BoolVarP(&yes, "yes", "y", false, "не запрашивать подтверждение")
+	cmd.AddCommand(newCommandAssistCmd())
 	return cmd
+}
+
+// newCommandAssistCmd создаёт yt command assist (SPEC §3.6): предварительный
+// разбор команды YouTrack и подсказки без применения (POST /commands/assist).
+// Аргумент — команда или её часть. В v1 — только вывод подсказок, без
+// интерактивного UI.
+func newCommandAssistCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "assist <commands>",
+		Short: "Подсказки по командному языку YouTrack",
+		Long: "Предварительный разбор команды YouTrack и подсказки без применения\n" +
+			"(POST /commands/assist). Аргумент — команда или её часть\n" +
+			"(например \"state: \" или \"tag: \"); выводятся подсказки\n" +
+			"«OK: <команда> — <описание>». В v1 — только вывод, без интерактивного UI.\n",
+		Args: argsValidator(cobra.ExactArgs(1)),
+		RunE: runCommandAssistCmd(),
+	}
+	return cmd
+}
+
+// runCommandAssistCmd возвращает RunE для yt command assist (SPEC §3.6):
+// POST /commands/assist с полями FieldsCommandAssist и командой как есть.
+func runCommandAssistCmd() func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		client, err := requireClient(cmd)
+		if err != nil {
+			return err
+		}
+
+		query := args[0]
+		res, err := client.CommandAssist(cmd.Context(), query, api.FieldsCommandAssist)
+		if err != nil {
+			return err
+		}
+
+		p := printer(cmd)
+		if p.JSON() {
+			return p.WriteJSON(res)
+		}
+		return writeCommandAssistTTY(p, res, query)
+	}
+}
+
+// writeCommandAssistTTY печатает подсказки командного языка (SPEC §3.6):
+// для каждой подсказки строка «OK: <команда> — <описание>». Пустой ответ —
+// «No suggestions for "<query>"».
+func writeCommandAssistTTY(p *output.Printer, res *api.CommandList, query string) error {
+	if len(res.Suggestions) == 0 {
+		return p.Linef("No suggestions for %s", quoteQuery(query))
+	}
+	for _, s := range res.Suggestions {
+		if err := p.Linef("OK: %s — %s", s.Option, s.Description); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // runCommandCmd возвращает RunE для yt command (SPEC §3.6): разбор id по

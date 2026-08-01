@@ -272,3 +272,164 @@ func TestFormatCommandQuery(t *testing.T) {
 		}
 	}
 }
+
+// commandAssistBody — фикстурный ответ POST /commands/assist (поля
+// FieldsCommandAssist): три подсказки для частичной команды «state: ».
+const commandAssistBody = `{"$type":"CommandList","query":"state: ","suggestions":[
+	{"$type":"Suggestion","option":"state","description":"Set the state","suffix":": "},
+	{"$type":"Suggestion","option":"Fixed","description":"Fixed state","prefix":" ","suffix":" "},
+	{"$type":"Suggestion","option":"Done","description":"Done state","prefix":" ","suffix":" "}
+]}`
+
+// commandAssistServer поднимает фейковый YouTrack: POST /commands/assist,
+// фиксируя запросы и тела.
+func commandAssistServer(t *testing.T, body string) (*httptest.Server, *[]string, *[]string) {
+	t.Helper()
+	reqs := &[]string{}
+	bodies := &[]string{}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, _ := io.ReadAll(r.Body)
+		*reqs = append(*reqs, r.Method+" "+r.URL.Path+"?"+r.URL.RawQuery)
+		*bodies = append(*bodies, string(data))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(ts.Close)
+	return ts, reqs, bodies
+}
+
+// runCommandAssist выполняет yt command assist <args> против фейкового сервера.
+func runCommandAssist(t *testing.T, srv *httptest.Server, args ...string) (string, string, int) {
+	t.Helper()
+	isolatedConfig(t)
+	t.Setenv("YT_TOKEN", "secret-token")
+	full := append([]string{"command", "assist"}, args...)
+	full = append(full, "--base-url", srv.URL)
+	return runRoot(t, NewRootCommand(), full...)
+}
+
+func TestNewCommandAssistCmd_Use(t *testing.T) {
+	cmd := newCommandAssistCmd()
+	if cmd.Use != "assist <commands>" {
+		t.Errorf("Use = %q, want assist <commands>", cmd.Use)
+	}
+}
+
+func TestCommandAssistRegisteredInRoot(t *testing.T) {
+	root := NewRootCommand()
+	command, _, err := root.Find([]string{"command"})
+	if err != nil {
+		t.Fatalf("find command: %v", err)
+	}
+	assist, _, err := command.Find([]string{"assist"})
+	if err != nil {
+		t.Fatalf("find command assist: %v", err)
+	}
+	if assist.Name() != "assist" {
+		t.Errorf("assist.Name() = %q, want assist", assist.Name())
+	}
+}
+
+func TestCommandAssist_NoArgs_UsageError(t *testing.T) {
+	isolatedConfig(t)
+	_, stderr, code := runRoot(t, NewRootCommand(), "command", "assist")
+	if code != exitUsage {
+		t.Errorf("code = %d, want %d; stderr=%q", code, exitUsage, stderr)
+	}
+}
+
+func TestCommandAssist_TooManyArgs_UsageError(t *testing.T) {
+	isolatedConfig(t)
+	_, stderr, code := runRoot(t, NewRootCommand(), "command", "assist", "state: ", "tag: ")
+	if code != exitUsage {
+		t.Errorf("code = %d, want %d; stderr=%q", code, exitUsage, stderr)
+	}
+}
+
+func TestCommandAssist_TTY(t *testing.T) {
+	srv, reqs, bodies := commandAssistServer(t, commandAssistBody)
+	out, _, code := runCommandAssist(t, srv, "state: ")
+	if code != exitOK {
+		t.Fatalf("code = %d, want %d; out=%q", code, exitOK, out)
+	}
+	want := "OK: state — Set the state\n" +
+		"OK: Fixed — Fixed state\n" +
+		"OK: Done — Done state\n"
+	if out != want {
+		t.Errorf("stdout:\n%s\nwant:\n%s", out, want)
+	}
+
+	if len(*reqs) != 1 {
+		t.Fatalf("requests = %v, want 1", *reqs)
+	}
+	got := (*reqs)[0]
+	if !strings.HasPrefix(got, "POST /commands/assist?") {
+		t.Errorf("request = %q, want POST /commands/assist", got)
+	}
+	if q := commandQuery(t, got); q.Get("fields") != api.FieldsCommandAssist {
+		t.Errorf("fields = %q, want %q", q.Get("fields"), api.FieldsCommandAssist)
+	}
+
+	if len(*bodies) != 1 {
+		t.Fatalf("bodies = %v, want 1", *bodies)
+	}
+	body := decodeSentBody(t, bodies)
+	if body["query"] != "state: " {
+		t.Errorf("body query = %v, want state: ", body["query"])
+	}
+	if body["caret"] != float64(len("state: ")) {
+		t.Errorf("body caret = %v, want %d", body["caret"], len("state: "))
+	}
+}
+
+func TestCommandAssist_TTY_Empty(t *testing.T) {
+	srv, _, _ := commandAssistServer(t, `{"$type":"CommandList","query":"state: Fixed"}`)
+	out, _, code := runCommandAssist(t, srv, "state: Fixed")
+	if code != exitOK {
+		t.Fatalf("code = %d, want %d; out=%q", code, exitOK, out)
+	}
+	if want := "No suggestions for \"state: Fixed\"\n"; out != want {
+		t.Errorf("stdout = %q, want %q", out, want)
+	}
+}
+
+func TestCommandAssist_JSON(t *testing.T) {
+	srv, _, _ := commandAssistServer(t, commandAssistBody)
+	out, _, code := runCommandAssist(t, srv, "state: ", "--json")
+	if code != exitOK {
+		t.Fatalf("code = %d, want %d; out=%q", code, exitOK, out)
+	}
+	var got map[string]any
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("stdout is not valid JSON: %v\n%s", err, out)
+	}
+	if got["query"] != "state: " {
+		t.Errorf("query = %v, want state: ", got["query"])
+	}
+	sugs, ok := got["suggestions"].([]any)
+	if !ok || len(sugs) != 3 {
+		t.Fatalf("suggestions = %v, want array of 3", got["suggestions"])
+	}
+	first := sugs[0].(map[string]any)
+	if first["option"] != "state" || first["description"] != "Set the state" {
+		t.Errorf("suggestions[0] = %v, want state / Set the state", first)
+	}
+}
+
+func TestCommandAssist_ServerError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":"Bad request","error_description":"cannot parse command"}`))
+	}))
+	t.Cleanup(ts.Close)
+
+	_, stderr, code := runCommandAssist(t, ts, "bogus command")
+	if code != exitRuntime {
+		t.Errorf("code = %d, want %d; stderr=%q", code, exitRuntime, stderr)
+	}
+	if want := "yt: request failed: 400 Bad request: cannot parse command\n"; stderr != want {
+		t.Errorf("stderr = %q, want %q", stderr, want)
+	}
+}
