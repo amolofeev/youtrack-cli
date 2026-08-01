@@ -109,6 +109,10 @@ func NewRootCommand() *cobra.Command {
 	projectCmd.GroupID = "server"
 	cmd.AddCommand(projectCmd)
 
+	tagCmd := newTagCmd()
+	tagCmd.GroupID = "server"
+	cmd.AddCommand(tagCmd)
+
 	return cmd
 }
 
