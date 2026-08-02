@@ -30,6 +30,9 @@
   `make build/lint` с `GO ?= go`), падают с «go command required, not found». Запускай
   с явным PATH: `PATH="$HOME/sdk/go1.24.0/bin:$PATH" make lint` (или ту же команду
   golangci-lint напрямую). `make test`/`make vet` работают и без PATH (Go задан явно).
+  С #42 `make lint` сам находит golangci-lint (переменная `GOLANGCI_LINT`, фолбэк
+  `$(HOME)/go/bin/golangci-lint`) — бинарь golangci-lint в PATH не обязателен,
+  достаточно PATH с Go.
 - Проверка форматирования — только свой код: `~/sdk/go1.24.0/bin/gofmt -l internal cmd`.
 - Golden-тесты вывода (Атом 7.3, #41): golden-файлы — `yt/testdata/*.golden`
   (commitятся, корневой .gitignore их не игнорирует), регенерация —
