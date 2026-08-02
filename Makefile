@@ -1,4 +1,5 @@
 GO ?= go
+GOLANGCI_LINT ?= $(shell command -v golangci-lint 2>/dev/null || echo "$(HOME)/go/bin/golangci-lint")
 
 VERSION := $(shell cat ../VERSION)
 COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
@@ -17,7 +18,7 @@ test:
 	$(GO) test ./...
 
 lint:
-	golangci-lint run
+	$(GOLANGCI_LINT) run
 
 vet:
 	$(GO) vet ./...
