@@ -16,6 +16,7 @@ CLI-утилита для YouTrack (Go, cobra). Модуль `github.com/amolofe
 | `README.md` | Пользовательская документация CLI: сборка, конфигурация, примеры ключевых команд |
 | `testdata/` | Golden-файлы вывода команд (`*.golden`, SPEC §5.2); обновляются флагом `-update` |
 | `docs/structure.md` | Этот файл — single source структуры подпроекта |
+| `docs/MIGRATION.md` | План миграции yt в независимый git-репозиторий (#53, статус: на согласовании) |
 | `vendor/` | Генерат (`go mod vendor`) — не для поиска/чтения |
 | `bin/` | Генерат (`make build` → `bin/yt`) — не для поиска/чтения |
 
