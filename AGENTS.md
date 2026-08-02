@@ -31,6 +31,13 @@
   с явным PATH: `PATH="$HOME/sdk/go1.24.0/bin:$PATH" make lint` (или ту же команду
   golangci-lint напрямую). `make test`/`make vet` работают и без PATH (Go задан явно).
 - Проверка форматирования — только свой код: `~/sdk/go1.24.0/bin/gofmt -l internal cmd`.
+- Golden-тесты вывода (Атом 7.3, #41): golden-файлы — `yt/testdata/*.golden`
+  (commitятся, корневой .gitignore их не игнорирует), регенерация —
+  `go test ./internal/commands -run TestGolden -update` из `yt/`. При изменении
+  формата вывода команды (рендеры в `internal/commands`) golden-файлы обновлять
+  в ТОМ ЖЕ коммите и просматривать их diff — это часть осознанного изменения
+  (SPEC §5.2). Перед первым `-update` в свежем клоне создать каталог `testdata/`
+  (`os.WriteFile` не создаёт родителей).
 - Поведение зависимостей (cobra и т.п.) проверяй юнит-тестом, а не чтением исходников —
   тест быстрее, а факт остаётся в коде. Сверку API-сигнатур (например, какой метод есть
   в cobra v1.10.2) делай по исходникам из module cache (`go env GOMODCACHE`), одним
