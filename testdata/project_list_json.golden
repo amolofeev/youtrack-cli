@@ -1,0 +1,1 @@
+[{"$type":"Project","id":"0-0","name":"Project One","shortName":"PRJ","archived":false,"leader":{"$type":"User","id":"1-1","login":"alex","fullName":"Alex"}},{"$type":"Project","id":"0-1","name":"Demo project","shortName":"DEMO","archived":true,"leader":{"$type":"User","id":"1-2","login":"bob","fullName":"Bob"}}]

@@ -13,6 +13,7 @@ CLI-утилита для YouTrack (Go, cobra). Модуль `github.com/amolofe
 | `internal/config/` | Конфигурация (файл конфига, token/auth) |
 | `internal/output/` | Рендер результата: TTY-таблицы, `--json`, pager (`pager.go`) |
 | `internal/version/` | Версия/commit/build, встраиваются через `-ldflags` |
+| `testdata/` | Golden-файлы вывода команд (`*.golden`, SPEC §5.2); обновляются флагом `-update` |
 | `docs/structure.md` | Этот файл — single source структуры подпроекта |
 | `vendor/` | Генерат (`go mod vendor`) — не для поиска/чтения |
 | `bin/` | Генерат (`make build` → `bin/yt`) — не для поиска/чтения |

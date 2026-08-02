@@ -1,0 +1,17 @@
+PRJ-42  Fix login flow
+────────────────────────────────────────────────────────────────
+STATE: Open  PROJECT: PRJ  REPORTER: alex
+CREATED: 2026-07-01 14:00  UPDATED: 2026-07-05 10:00
+Tags: backend, auth
+────────────────────────────────────────────────────────────────
+Steps:
+1. Reproduce.
+2. Fix.
+
+Comments (2):
+───────────
+alex · 2026-07-01 14:05
+First comment text.
+
+ivan · 2026-07-03 09:00
+Second comment text.

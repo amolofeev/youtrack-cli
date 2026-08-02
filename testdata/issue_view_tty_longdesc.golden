@@ -1,0 +1,13 @@
+PRJ-42  Fix login flow
+────────────────────────────────────────────────────────────────
+STATE: Open  PROJECT: PRJ  REPORTER: alex
+CREATED: 2026-07-01 14:00  UPDATED: 2026-07-05 10:00
+Tags: backend
+────────────────────────────────────────────────────────────────
+A long description spanning many lines so the output does not fit a single terminal screen and a real pager would take over.
+
+Paragraph one keeps going with a lot of words to push the content well past one screen of output.
+
+Paragraph two continues the story and adds even more detail to the issue body.
+
+Final paragraph wraps up the description.

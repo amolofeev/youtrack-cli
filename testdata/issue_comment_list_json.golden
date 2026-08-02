@@ -1,0 +1,1 @@
+[{"$type":"IssueComment","id":"7-1","text":"First comment text.","created":1782914700000,"author":{"$type":"User","id":"1-1","login":"alex","fullName":"Alex"}},{"$type":"IssueComment","id":"7-2","text":"Second comment text.","created":1783069200000,"author":{"$type":"User","id":"1-1","login":"ivan","fullName":"Ivan"}}]

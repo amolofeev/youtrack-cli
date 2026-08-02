@@ -1,0 +1,1 @@
+[{"$type":"Issue","id":"2-1","idReadable":"PRJ-42","summary":"Fix login flow","resolved":1783296000000,"project":{"$type":"Project","id":"0-0","shortName":"PRJ"}},{"$type":"Issue","id":"2-2","idReadable":"PRJ-43","summary":"Write TZ for yt CLI","resolved":1783296000000,"project":{"$type":"Project","id":"0-0","shortName":"PRJ"}}]

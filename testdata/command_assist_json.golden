@@ -1,0 +1,1 @@
+{"$type":"CommandList","query":"state: ","suggestions":[{"$type":"Suggestion","option":"state","description":"Set the state","suffix":": "},{"$type":"Suggestion","option":"Fixed","description":"Fixed state","prefix":" ","suffix":" "},{"$type":"Suggestion","option":"Done","description":"Done state","prefix":" ","suffix":" "}]}
