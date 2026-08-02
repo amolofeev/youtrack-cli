@@ -1,5 +1,6 @@
 GO ?= go
 GOLANGCI_LINT ?= $(shell command -v golangci-lint 2>/dev/null || echo "$(HOME)/go/bin/golangci-lint")
+TESTFLAGS ?= -cover -bench=. -count=1 -v
 
 VERSION := $(shell cat ../VERSION)
 COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
@@ -15,7 +16,7 @@ build:
 	$(GO) build -trimpath -ldflags "$(LDFLAGS)" -o bin/yt ./cmd/yt
 
 test:
-	$(GO) test ./...
+	$(GO) test $(TESTFLAGS) ./...
 
 lint:
 	$(GOLANGCI_LINT) run
