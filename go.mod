@@ -1,4 +1,4 @@
-module github.com/amolofeev/prompt-and-pray
+module github.com/amolofeev/yt
 
 go 1.24.0
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/amolofeev/prompt-and-pray/internal/api"
+	"github.com/amolofeev/yt/internal/api"
 )
 
 // Паттерны идентификаторов задач (§4.1): ring-id и idReadable. Форматы не

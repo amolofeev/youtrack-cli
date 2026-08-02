@@ -10,10 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/amolofeev/prompt-and-pray/internal/api"
-	"github.com/amolofeev/prompt-and-pray/internal/config"
-	"github.com/amolofeev/prompt-and-pray/internal/output"
-	"github.com/amolofeev/prompt-and-pray/internal/version"
+	"github.com/amolofeev/yt/internal/api"
+	"github.com/amolofeev/yt/internal/config"
+	"github.com/amolofeev/yt/internal/output"
+	"github.com/amolofeev/yt/internal/version"
 	"github.com/spf13/cobra"
 )
 

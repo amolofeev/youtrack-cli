@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/amolofeev/prompt-and-pray/internal/api"
+	"github.com/amolofeev/yt/internal/api"
 )
 
 func TestNewIssueCmd(t *testing.T) {

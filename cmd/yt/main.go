@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/amolofeev/prompt-and-pray/internal/commands"
+	"github.com/amolofeev/yt/internal/commands"
 )
 
 func main() {

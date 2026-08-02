@@ -1,2 +1,5 @@
 bin/
 vendor/
+.opencode/memory.md
+.opencode/*_memory.md
+.opencode/openapi.json

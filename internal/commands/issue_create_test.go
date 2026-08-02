@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/amolofeev/prompt-and-pray/internal/api"
+	"github.com/amolofeev/yt/internal/api"
 )
 
 // issueCreateProjectsBody — фикстурный ответ GET /admin/projects (FieldsProjectResolve).

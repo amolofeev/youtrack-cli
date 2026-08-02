@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amolofeev/prompt-and-pray/internal/api"
-	"github.com/amolofeev/prompt-and-pray/internal/config"
+	"github.com/amolofeev/yt/internal/api"
+	"github.com/amolofeev/yt/internal/config"
 )
 
 const (

@@ -2,13 +2,13 @@ GO ?= go
 GOLANGCI_LINT ?= $(shell command -v golangci-lint 2>/dev/null || echo "$(HOME)/go/bin/golangci-lint")
 TESTFLAGS ?= -cover -bench=. -count=1 -v
 
-VERSION := $(shell cat ../VERSION)
+VERSION := $(shell cat VERSION)
 COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILT   := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 
-LDFLAGS := -X github.com/amolofeev/prompt-and-pray/internal/version.Version=$(VERSION) \
-           -X github.com/amolofeev/prompt-and-pray/internal/version.Commit=$(COMMIT) \
-           -X github.com/amolofeev/prompt-and-pray/internal/version.Built=$(BUILT)
+LDFLAGS := -X github.com/amolofeev/yt/internal/version.Version=$(VERSION) \
+           -X github.com/amolofeev/yt/internal/version.Commit=$(COMMIT) \
+           -X github.com/amolofeev/yt/internal/version.Built=$(BUILT)
 
 .PHONY: build test lint vet integration
 

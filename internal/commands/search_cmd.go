@@ -3,8 +3,8 @@ package commands
 import (
 	"fmt"
 
-	"github.com/amolofeev/prompt-and-pray/internal/api"
-	"github.com/amolofeev/prompt-and-pray/internal/output"
+	"github.com/amolofeev/yt/internal/api"
+	"github.com/amolofeev/yt/internal/output"
 	"github.com/spf13/cobra"
 )
 

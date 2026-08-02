@@ -1,7 +1,7 @@
 # Структура подпроекта `yt/`
 
-CLI-утилита для YouTrack (Go, cobra). Модуль `github.com/amolofeev/prompt-and-pray`.
-Спека и планы — в корневом `docs/` (reference `spec`); здесь только устройство кода.
+CLI-утилита для YouTrack (Go, cobra). Модуль `github.com/amolofeev/yt`.
+Подпроект изолирован в `yt/` и готовится к переносу в отдельный git-репозиторий (#53).
 
 ## Карта: путь → смысл
 
@@ -14,9 +14,14 @@ CLI-утилита для YouTrack (Go, cobra). Модуль `github.com/amolofe
 | `internal/output/` | Рендер результата: TTY-таблицы, `--json`, pager (`pager.go`) |
 | `internal/version/` | Версия/commit/build, встраиваются через `-ldflags` |
 | `README.md` | Пользовательская документация CLI: сборка, конфигурация, примеры ключевых команд |
+| `VERSION` | Источник версии (`yt version`, ldflags); релизный тег `v$(cat VERSION)` |
 | `testdata/` | Golden-файлы вывода команд (`*.golden`, SPEC §5.2); обновляются флагом `-update` |
+| `.github/workflows/` | CI (`ci.yml`: vet/lint/test/build) и релиз (`release.yml`, тег `v*`) |
+| `.opencode/` | Локальная память подпроекта (`yt_memory.md`) и снапшот спеки API (`openapi.json`) — gitignored |
+| `docs/SPEC.md` | ТЗ (rev 1.1.1) — актуальная копия (архив — в корне монорепо) |
+| `docs/PLAN.md` | Декомпозиция #5 — актуальная копия |
+| `docs/MIGRATION.md` | План миграции yt в независимый git-репозиторий (#53) |
 | `docs/structure.md` | Этот файл — single source структуры подпроекта |
-| `docs/MIGRATION.md` | План миграции yt в независимый git-репозиторий (#53, статус: на согласовании) |
 | `vendor/` | Генерат (`go mod vendor`) — не для поиска/чтения |
 | `bin/` | Генерат (`make build` → `bin/yt`) — не для поиска/чтения |
 

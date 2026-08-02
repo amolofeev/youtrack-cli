@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/amolofeev/prompt-and-pray/internal/version"
+	"github.com/amolofeev/yt/internal/version"
 )
 
 // setVersionForTest подменяет значения сборки на время теста и восстанавливает

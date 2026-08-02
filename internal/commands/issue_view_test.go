@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/amolofeev/prompt-and-pray/internal/api"
+	"github.com/amolofeev/yt/internal/api"
 )
 
 // issueViewIssueBody — фикстурный ответ GET /issues/PRJ-42 (поля FieldsIssueView).

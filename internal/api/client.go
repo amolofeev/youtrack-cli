@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amolofeev/prompt-and-pray/internal/version"
+	"github.com/amolofeev/yt/internal/version"
 )
 
 const (

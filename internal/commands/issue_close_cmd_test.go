@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/amolofeev/prompt-and-pray/internal/api"
+	"github.com/amolofeev/yt/internal/api"
 )
 
 // issueCloseBody — фикстурный ответ POST /commands (FieldsCommandIssues):

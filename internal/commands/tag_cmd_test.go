@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/amolofeev/prompt-and-pray/internal/api"
+	"github.com/amolofeev/yt/internal/api"
 )
 
 // tagListBody — фикстурный ответ GET /tags (поля FieldsTagList).
