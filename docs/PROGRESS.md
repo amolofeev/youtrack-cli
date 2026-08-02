@@ -13,3 +13,16 @@
 находки интеграционных проверок, дата сверки с `openapi.json` (§4.8).
 
 **Последнее обновление:** 2026-08-02 (миграция из prompt-and-pray завершена, #53).
+
+## Этап M5. Интеграция и смоук (#58, #67)
+
+- **2026-08-02:** интеграционные тесты против живого сервера
+  `http://localhost:8080` (YouTrack API 2025.3) — все зелёные:
+  read-only — `auth status`, `whoami`, `issue list/view`, `comment list`,
+  `search`, `suggest`, `command assist`, `project list`, `tag list`;
+  мутирующие (`YT_INTEGRATION_MUTATE=1`) — `create` (резолв проекта по
+  shortName/name/ring-id), `edit`, `command` (batch + атомарность), `comment create`,
+  `delete` (смоук-ишью удаляются в `t.Cleanup`).
+- Смоук CLI: `yt auth status` — `✓ Authenticated` (admin); `yt version` —
+  `0.0.1-pre-alpha`. В CI интеграционные тесты не запускаются (SPEC §5.4).
+
