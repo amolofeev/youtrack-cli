@@ -53,6 +53,8 @@
   Не создавай их без нужды: для чтения исходников зависимостей пользуйся module cache
   (`go env GOMODCACHE`), а не `go mod vendor`.
 - Цели Makefile: `make build` → `bin/yt`; `make test`; `make lint`; `make vet`; `make integration`.
+  `make test` по умолчанию гоняет `go test -cover -bench=. -count=1 -v ./...` — флаги через
+  переопределяемую переменную `TESTFLAGS ?= ...` (`make test TESTFLAGS="-run X"`), #52.
 - Версия берётся из корневого `VERSION` (`../VERSION`) и встраивается через `-ldflags`
   в переменные `internal/version.{Version,Commit,Built}`; при сборке без ldflags — `unknown`.
 - Объём и критерии приёмки — docs/SPEC.md (rev 1.1.1) и задачи GitHub (метка `atomic`).
