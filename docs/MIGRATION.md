@@ -1,7 +1,17 @@
 # План миграции yt в независимый git-репозиторий
 
-Версия: **0.1** · Статус: **черновик (на согласование)** · Дата: 2026-08-02
+Версия: **0.2** · Статус: **в исполнении (консолидация выполнена)** · Дата: 2026-08-02
 Задача: [#53](https://github.com/amolofeev/prompt-and-pray/issues/53) · Родитель: #5
+
+> **Статус 2026-08-02 (рев. 0.2):** по указанию владельца выполнена консолидация
+> всех файлов yt **внутри `yt/`** и изоляция подпроекта в монорепо (без git-операций):
+> `VERSION`, `.github/workflows/ci.yml` (порт) и `release.yml`, `.opencode/yt_memory.md`,
+> `.opencode/openapi.json`, копии `docs/SPEC.md`/`docs/PLAN.md` — перенесены в `yt/`;
+> модуль переименован в `github.com/amolofeev/yt`, `Makefile` читает `./VERSION`;
+> корневой `opencode.jsonc`/`AGENTS.md`/docs/README/CHANGELOG вычищены (изоляция).
+> В результате `git subtree split --prefix yt` захватывает ВСЁ, кроме gitignored
+> `.opencode/` (переносится копированием) и новых root-файлов целевого репо
+> (`LICENSE`, расширенный `.gitignore`, — вносятся импорт-коммитом).
 
 Документ описывает перевод подпроекта `yt` из поддиректории монорепозитория
 `prompt-and-pray` в отдельный git-репозиторий. **Это план, а не исполнение**:
@@ -92,9 +102,14 @@
 - Коммиты, меняющие только `yt/`: переносятся целиком (пути `yt/foo` → `foo`).
 - Коммиты, меняющие и `yt/`, и корневые файлы: остаются, но содержат только diff по `yt/`
   (root-изменения отбрасываются — они не пушились как «пустые»).
-- Коммиты, не затрагивающие `yt/` (VERSION `79a92c0`, CI `2b81160`, meta-коммиты
-  про `.opencode/`): отбрасываются. Их контент вносится **импорт-коммитом** в целевом
-  репо (VERSION, ci.yml, SPEC/PLAN — текущее состояние, история по 1 коммиту не ценна).
+- Коммиты, не затрагивающие `yt/`: отбрасываются. Их контент (VERSION `79a92c0`,
+  CI `2b81160`, meta-коммиты про `.opencode/`) с рев. 0.2 уже перенесён ВНУТРЬ `yt/`
+  (см. шапку) — `git subtree split --prefix yt` захватывает его вместе с историей yt.
+  Импорт-коммит в целевом репо вносит только то, чего нет в `yt/`: `LICENSE` (R6),
+  расширенный `.gitignore` (OS/IDE/Env из §3.5 — `yt/.gitignore` уже содержит
+  `.opencode/`-строки) и прочие target-специфичные файлы по решению владельца.
+- gitignored `.opencode/yt_memory.md` и `.opencode/openapi.json` переносятся
+  копированием (R9), subtree split их не трогает.
 - `git subtree split` не трогает контент файлов, только дерево (переименование путей),
   поэтому коммиты остаются пушей-безопасными и не требуют force-push после вставки
   в новый репо.
@@ -135,6 +150,9 @@ Golden-тесты версии задают значения через `setVers
 
 ### 3.1 Раскладка (корень = бывшее `yt/`)
 
+> Рев. 0.2: вся эта раскладка уже собрана ВНУТРИ `yt/` (кроме `LICENSE` и
+> OS/IDE/Env-блока `.gitignore`) — subtree split отдаст её как корень целевого репо.
+
 ```
 .
 ├── cmd/yt/main.go
@@ -172,6 +190,10 @@ Golden-тесты версии задают значения через `setVers
 - Замечание: путь модуля не обязан совпадать с URL хоста для локальной сборки; при
   будущем `go install <path>@latest` желательно, чтобы путь указывал на хостинг репо.
 
+> Рев. 0.2: переименование ВЫПОЛНЕНО в `yt/` (модуль `github.com/amolofeev/yt`,
+> 29 файлов) и верифицировано: build/vet/test зелёные, tidy без diff, версия/JSON
+> корректны. Если хостинг нового репо иной — путь модуля правится механически.
+
 ### 3.3 Makefile
 
 | Строка сейчас | Правка |
@@ -179,6 +201,8 @@ Golden-тесты версии задают значения через `setVers
 | `VERSION := $(shell cat ../VERSION)` | `VERSION := $(shell cat VERSION)` |
 | `-X github.com/amolofeev/prompt-and-pray/internal/version.Version=...` | путь модуля нового репо (R2) |
 | `COMMIT := $(shell git rev-parse --short HEAD ...)` | без изменений (работает в новом репо) |
+
+> Рев. 0.2: обе правки выполнены в `yt/Makefile`.
 
 ### 3.4 CI workflow (порт `.github/workflows/ci.yml`)
 
@@ -189,18 +213,21 @@ Golden-тесты версии задают значения через `setVers
 | golangci-lint-action `working-directory: yt` | убрать вход |
 | имя джобы `yt` | можно оставить |
 
+> Рев. 0.2: порт уже выполнен — `yt/.github/workflows/ci.yml` (пути как для корня
+> целевого репо; в монорепо воркфлоу не запускается — GitHub читает только корневой
+> `.github/workflows/`).
+
 Интеграционные тесты (`make integration`, `YT_INTEGRATION=1`) в CI не запускаются —
 это сохраняется (§5.4 SPEC, правило из #44). Сверка: после пуша в целевой репо
 `gh run watch` на CI-джобу.
 
 ### 3.5 `.gitignore` (объединённый)
 
+`yt/.gitignore` (рев. 0.2) уже содержит строки `bin/`, `vendor/`, `.opencode/memory.md`,
+`.opencode/*_memory.md`, `.opencode/openapi.json`. Импорт-коммит в целевом репо дополняет
+его OS/IDE/Env-блоком:
+
 ```gitignore
-bin/
-vendor/
-.opencode/memory.md
-.opencode/*_memory.md
-.opencode/openapi.json
 ### OS/IDE/Env ###
 .DS_Store
 Thumbs.db
@@ -226,9 +253,17 @@ build/
   и DoR/DoD-гейты для yt (покрытие ≥70% для config/api/output);
 - добавить правила коммитов для нового репо (см. R7).
 
+> Рев. 0.2: адаптация выполнена — `yt/AGENTS.md` самодостаточен (модуль
+> `github.com/amolofeev/yt`, `./VERSION`, память `yt/.opencode/`, добавлены DoR/DoD
+> и R7). Для самостоятельного репо правок не требуется.
+
 ---
 
 ## 4. Что правится в исходном (моно)репозитории
+
+> Рев. 0.2: §4.1–4.4 выполнены (изоляция, 2026-08-02) — `opencode.jsonc`, корневой
+> `AGENTS.md`, docs/README/CHANGELOG, память и локальные артефакты приведены в
+> состояние ниже. Осталась только §4.5 (git-операция).
 
 ### 4.1 `opencode.jsonc`
 
@@ -272,20 +307,20 @@ build/
 
 ### 5.1 Источник версии
 
-- `VERSION` (сейчас `0.0.1-pre-alpha`) переезжает в корень целевого репо и остаётся
-  единственным источником версии (`yt version` и `--version`, SPEC §1.4, #21).
+- `VERSION` (сейчас `0.0.1-pre-alpha`) — в корне `yt/` (рев. 0.2 перенесён из корня
+  монорепо внутрь подпроекта); остаётся единственным источником версии (`yt version`
+  и `--version`, SPEC §1.4, #21), Makefile читает `./VERSION`.
 - Релизный тег создаётся из него: `git tag "v$(cat VERSION)"`.
 - Альтернатива на будущее (отдельная задача): выводить версию из `git describe --tags`
   и убрать файл VERSION. Пока не требуется.
 
 ### 5.2 Релизный процесс (R4)
 
-- Рекомендация: GitHub Actions `release.yml` — триггер push тега `v*`:
-  1. `actions/setup-go@v5` (1.24.0);
-  2. матрица `os: [ubuntu-latest, macos-latest]`, `GOARCH: [amd64, arm64]`;
-  3. `make build` с `GOOS`/`GOARCH`, артефакт `bin/yt` → `bin/yt-<os>-<arch>`;
-  4. `sha256sum` → `checksums.txt`;
-  5. `softprops/action-gh-release` (или `gh release create`) — ассеты + чексуммы.
+- Рев. 0.2: `yt/.github/workflows/release.yml` уже на месте (push тега `v*`, setup-go
+  1.24.0, матрица `os: [ubuntu-latest, macos-latest]` × `GOARCH: [amd64, arm64]`,
+  `make build` с GOOS/GOARCH → `bin/yt-<os>-<arch>`, `sha256sum` → `checksums.txt`,
+  `gh release create`). subtree split перенесёт его в корень целевого репо.
+- Первый тег `v$(cat VERSION)` и релиз-прогон — после переноса.
 - Альтернатива: **goreleaser** (`goreleaser.yml`) — удобнее (homebrew/нативные пакеты),
   но добавляет зависимость и конфиг; отложить до появления спроса на дистрибуцию.
 - `bin/yt` в репо не хранится (gitignored) — артефакт только в релизе.
@@ -298,7 +333,7 @@ build/
 
 | # | Вопрос | Риск/суть | Кто решает | Куда влияет |
 |---|---|---|---|---|
-| R2 | Путь модуля | «prompt-and-pray» в импортах самостоятельного репо; переименование — массовая правка | владелец | §3.2, бинарь (символы ldflags) |
+| R2 | Путь модуля | «prompt-and-pray» в импортах самостоятельного репо; переименование — массовая правка | владелец | §3.2, бинарь (символы ldflags). **Рев. 0.2: применено по рекомендации** (`github.com/amolofeev/yt`); при ином имени репо — механическая правка |
 | R3 | Версионирование | VERSION-файл vs теги; рассинхрон файла и тега | владелец | §5.1 |
 | R4 | Релизный процесс | простой Actions vs goreleaser | владелец | §5.2 |
 | R5 | Удаление `yt/` | двойная поддержка при «оставить» | владелец | §4.5 |
@@ -318,11 +353,12 @@ build/
 ### Этап M1 — Подготовка и перенос истории
 - [ ] Локальный репо без незакоммиченного мусора; создать целевой пустой репо на GitHub
   (имя — решение владельца) и пустой клон.
-- [ ] `git subtree split --prefix yt -b yt-history` в монорепо.
+- [ ] `git subtree split --prefix yt -b yt-history` в монорепо (рев. 0.2: split
+  захватывает VERSION, CI/release.yml, SPEC/PLAN, AGENTS.md, MIGRATION.md — они внутри `yt/`).
 - [ ] В целевом репо: `git fetch <monorepo> yt-history` → `git checkout -b main FETCH_HEAD`.
-- [ ] Импорт-коммит: `VERSION`, `.github/workflows/ci.yml`, копии `docs/SPEC.md`/`docs/PLAN.md`,
-  объединённый `.gitignore`, `LICENSE`, `AGENTS.md`, `docs/MIGRATION.md`, `.opencode/yt_memory.md`
-  (локально, gitignored).
+- [ ] Импорт-коммит (только то, чего нет в `yt/`): `LICENSE` (R6), объединённый
+  `.gitignore` (OS/IDE/Env-блок §3.5 дополняет `yt/.gitignore`), локально (gitignored):
+  `.opencode/yt_memory.md`, `.opencode/openapi.json`.
 - **Проверка:** `git log --oneline` содержит bootstrap `a6c157d` первым и все yt-атомы;
   `git ls-files` = ожидаемый набор §3.1; аудит секретов §2.5 — чисто.
 
