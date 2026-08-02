@@ -22,7 +22,7 @@
 ## Локальные правила
 
 - Все команды Go выполняются из каталога `yt/` (здесь свой `go.mod`).
-- Модуль: `github.com/amolofeev/yt` (R2, решение по миграции #53); структура
+- Модуль: `github.com/amolofeev/youtrack-cli` (R2, синхронизирован с именем репо); структура
   `cmd/` + `internal/` — по SPEC §2.2, раскладка по пакетам — `docs/structure.md`.
 - Инструментарий: путь до Go — `~/sdk/go1.24.0/bin/go` (не в PATH), пользуйся им
   напрямую; gofmt — там же (`~/sdk/go1.24.0/bin/gofmt`); golangci-lint —

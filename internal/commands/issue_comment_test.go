@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/amolofeev/yt/internal/api"
+	"github.com/amolofeev/youtrack-cli/internal/api"
 )
 
 // commentCreateBody — фикстурный ответ POST /issues/{id}/comments

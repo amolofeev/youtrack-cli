@@ -1,6 +1,6 @@
 # Структура подпроекта `yt/`
 
-CLI-утилита для YouTrack (Go, cobra). Модуль `github.com/amolofeev/yt`.
+CLI-утилита для YouTrack (Go, cobra). Модуль `github.com/amolofeev/youtrack-cli`.
 Подпроект изолирован в `yt/` и готовится к переносу в отдельный git-репозиторий (#53).
 
 ## Карта: путь → смысл

@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/amolofeev/yt/internal/commands"
+	"github.com/amolofeev/youtrack-cli/internal/commands"
 )
 
 func main() {

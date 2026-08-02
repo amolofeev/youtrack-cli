@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amolofeev/yt/internal/version"
+	"github.com/amolofeev/youtrack-cli/internal/version"
 )
 
 const (

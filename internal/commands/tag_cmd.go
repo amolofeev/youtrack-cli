@@ -3,8 +3,8 @@ package commands
 import (
 	"fmt"
 
-	"github.com/amolofeev/yt/internal/api"
-	"github.com/amolofeev/yt/internal/output"
+	"github.com/amolofeev/youtrack-cli/internal/api"
+	"github.com/amolofeev/youtrack-cli/internal/output"
 	"github.com/spf13/cobra"
 )
 

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/amolofeev/yt/internal/api"
+	"github.com/amolofeev/youtrack-cli/internal/api"
 )
 
 // projectListBody — фикстурный ответ GET /admin/projects (поля FieldsProjectList).

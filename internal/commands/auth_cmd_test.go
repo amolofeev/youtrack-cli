@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/amolofeev/yt/internal/config"
+	"github.com/amolofeev/youtrack-cli/internal/config"
 	"github.com/spf13/cobra"
 )
 

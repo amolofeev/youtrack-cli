@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/amolofeev/yt/internal/version"
+	"github.com/amolofeev/youtrack-cli/internal/version"
 )
 
 // setVersionForTest подменяет значения сборки на время теста и восстанавливает

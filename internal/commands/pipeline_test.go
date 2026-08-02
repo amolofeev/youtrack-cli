@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/amolofeev/yt/internal/api"
+	"github.com/amolofeev/youtrack-cli/internal/api"
 	"github.com/spf13/cobra"
 )
 

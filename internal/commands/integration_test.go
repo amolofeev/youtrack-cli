@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amolofeev/yt/internal/api"
-	"github.com/amolofeev/yt/internal/config"
+	"github.com/amolofeev/youtrack-cli/internal/api"
+	"github.com/amolofeev/youtrack-cli/internal/config"
 )
 
 const (

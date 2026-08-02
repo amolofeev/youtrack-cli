@@ -3,3 +3,22 @@ vendor/
 .opencode/memory.md
 .opencode/*_memory.md
 .opencode/openapi.json
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build artifacts
+*.test
+*.out
+*.prof
+*.exe
+*.exe~
+

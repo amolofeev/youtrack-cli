@@ -6,9 +6,9 @@ VERSION := $(shell cat VERSION)
 COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILT   := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 
-LDFLAGS := -X github.com/amolofeev/yt/internal/version.Version=$(VERSION) \
-           -X github.com/amolofeev/yt/internal/version.Commit=$(COMMIT) \
-           -X github.com/amolofeev/yt/internal/version.Built=$(BUILT)
+LDFLAGS := -X github.com/amolofeev/youtrack-cli/internal/version.Version=$(VERSION) \
+           -X github.com/amolofeev/youtrack-cli/internal/version.Commit=$(COMMIT) \
+           -X github.com/amolofeev/youtrack-cli/internal/version.Built=$(BUILT)
 
 .PHONY: build test lint vet integration
 

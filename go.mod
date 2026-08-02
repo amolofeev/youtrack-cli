@@ -1,4 +1,4 @@
-module github.com/amolofeev/yt
+module github.com/amolofeev/youtrack-cli
 
 go 1.24.0
 
