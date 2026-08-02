@@ -83,3 +83,23 @@
   выключатся. Обёртка: `script -qec '<cmd>' /dev/null` (выделяет pty).
   Для pager-а задавай `PAGER='<stub> <out>'` и сверяй, что контент ушёл
   в файл stub-а, а не в pty.
+
+## Интеграционные тесты (Атом 8.3, #44)
+
+- Интеграционные тесты — `yt/internal/commands/integration_test.go` (SPEC §5.4).
+  Запуск: `YT_INTEGRATION=1 make integration` из `yt/` (с PATH на Go); в CI
+  не запускаются. Read-only тесты (auth status, whoami, list/view, search,
+  suggest, assist, project/tag list) идут только с `YT_INTEGRATION=1`.
+- Мутирующие тесты (create/edit/close/command/comment/delete) требуют явного
+  разрешения `YT_INTEGRATION_MUTATE=1` — иначе `t.Skip` (SPEC §5.4: create/delete
+  по умолчанию skip). Каждый мутирующий тест создаёт смоук-ишью с уникальным
+  summary и удаляет её в `t.Cleanup` — не оставлять задачи на сервере.
+  Для прогона нужен `YT_TOKEN` (брать у человека/окружения, config.yml напрямую
+  не открывать без разрешения владельца).
+- Мишень — локальный реальный сервер (localhost:8080); проект и разрешающее
+  состояние для create/command берутся с сервера динамически (project list,
+  command assist), а не хардкодятся (в DEMO разрешающее состояние — Done,
+  не Fixed — дефолт `state: Fixed` даёт 400).
+- Атомарность `/commands` (SPEC §3.4): команда с несуществующей задачей в
+  batch → HTTP 400, изменения к валидным задачам НЕ применяются (тест
+  TestIntegrationCommandAtomicity; сервер 2025.3 отклоняет весь запрос).
