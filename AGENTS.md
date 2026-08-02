@@ -26,10 +26,11 @@
 - Инструментарий: путь до Go — `~/sdk/go1.24.0/bin/go` (не в PATH), пользуйся им
   напрямую; gofmt — там же (`~/sdk/go1.24.0/bin/gofmt`); golangci-lint —
   `~/go/bin/golangci-lint` (v1.64+).
-- Так как Go нет в PATH, инструменты, зовущие `go` из PATH (golangci-lint, а также
-  `make build/lint` с `GO ?= go`), падают с «go command required, not found». Запускай
-  с явным PATH: `PATH="$HOME/sdk/go1.24.0/bin:$PATH" make lint` (или ту же команду
-  golangci-lint напрямую). `make test`/`make vet` работают и без PATH (Go задан явно).
+- Так как Go нет в PATH, ВСЕ цели Makefile (`build/test/vet/integration`) падают:
+  Makefile зовёт `$(GO)`, где `GO ?= go` — резолв из PATH («make: go: No such file
+  or directory»). Проверено на #45: `make test`/`make vet` без PATH тоже не работают
+  (вопреки старой заметке). Запуск любых make-целей — только с явным PATH:
+  `PATH="$HOME/sdk/go1.24.0/bin:$PATH" make <target>`.
   С #42 `make lint` сам находит golangci-lint (переменная `GOLANGCI_LINT`, фолбэк
   `$(HOME)/go/bin/golangci-lint`) — бинарь golangci-lint в PATH не обязателен,
   достаточно PATH с Go.
